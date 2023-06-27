@@ -13,6 +13,8 @@
 #include <soc.h>
 #include <zephyr/drivers/mdio.h>
 
+#include <zephyr/drivers/pinctrl.h>
+
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(mdio_stm32, CONFIG_MDIO_LOG_LEVEL);
 
@@ -41,13 +43,13 @@ static void mdio_stm32_bus_disable(const struct device *dev)
 
 static int mdio_stm32_read(const struct device *dev, uint8_t prtad, uint8_t devad, uint16_t *data)
 {
-	const struct mdio_stm32_dev_config const *cfg = dev->config;
-	const struct mdio_stm32_dev_data const *data = dev->data;
+	struct mdio_stm32_dev_config const *cfg = dev->config;
+	struct mdio_stm32_dev_data *dev_data = dev->data;
 	int timeout = 50;
 
-	k_sem_take(&data->sem, K_FOREVER);
+	k_sem_take(&dev_data->sem, K_FOREVER);
 
-	uint32_t tmpreg1 = cfg->reg->MACMIIAR;
+	uint32_t tmpreg1 = cfg->regs->MACMIIAR;
 	if (cfg->protocol == CLAUSE_22) {
 		tmpreg1 &= ~ETH_MACMIIAR_CR_MASK;          /* Preserve clock bits */
 		tmpreg1 |= STM32_SET_PHY_DEV_ADDR(prtad)   /* Set PHY Device Address*/
@@ -61,10 +63,10 @@ static int mdio_stm32_read(const struct device *dev, uint8_t prtad, uint8_t deva
 
 	cfg->regs->MACMIIAR = tmpreg1;
 
-	while (cfg->regs->MACMIIAR & ETH_MACMIIAR_MB == ETH_MACMIIAR_MB) {
+	while ((cfg->regs->MACMIIAR & ETH_MACMIIAR_MB) == ETH_MACMIIAR_MB) {
 		if (timeout-- == 0) {
-			LOG_ERR("Read operation timedout %s", dev->name);
-			k_sem_give(&data->sem);
+			LOG_ERR("Read operation timed out %s", dev->name);
+			k_sem_give(&dev_data->sem);
 			return -ETIMEDOUT;
 		}
 		k_sleep(K_MSEC(5));
@@ -73,19 +75,19 @@ static int mdio_stm32_read(const struct device *dev, uint8_t prtad, uint8_t deva
 	/* Move the data out of the PHY register. */
 	*data = ((cfg->regs->MACMIIDR >> ETH_MACMIIDR_MD_Pos) & ETH_MACMIIDR_MD_Msk);
 
-	k_sem_give(&data->sem);
+	k_sem_give(&dev_data->sem);
 	return 0;
 }
 
 static int mdio_stm32_write(const struct device *dev, uint8_t prtad, uint8_t devad, uint16_t data)
 {
-	const struct mdio_stm32_dev_config const *cfg = dev->config;
-	const struct mdio_stm32_dev_data const *data = dev->data;
+	struct mdio_stm32_dev_config const *cfg = dev->config;
+	struct mdio_stm32_dev_data *dev_data = dev->data;
 	int timeout = 50;
 
-	k_sem_take(&data->sem, K_FOREVER);
+	k_sem_take(&dev_data->sem, K_FOREVER);
 
-	uint32_t tmpreg1 = cfg->reg->MACMIIAR;
+	uint32_t tmpreg1 = cfg->regs->MACMIIAR;
 	if (cfg->protocol == CLAUSE_22) {
 		tmpreg1 &= ~ETH_MACMIIAR_CR_MASK;          /* Preserve clock bits */
 		tmpreg1 |= STM32_SET_PHY_DEV_ADDR(prtad)   /* Set PHY Device Address*/
@@ -101,16 +103,16 @@ static int mdio_stm32_write(const struct device *dev, uint8_t prtad, uint8_t dev
 	cfg->regs->MACMIIDR = (data & ETH_MACMIIDR_MD_Msk) << ETH_MACMIIDR_MD_Pos;
 	cfg->regs->MACMIIAR = tmpreg1;
 
-	while (cfg->regs->MACMIIAR & ETH_MACMIIAR_MB == ETH_MACMIIAR_MB) {
+	while ((cfg->regs->MACMIIAR & ETH_MACMIIAR_MB) == ETH_MACMIIAR_MB) {
 		if (timeout-- == 0) {
-			LOG_ERR("Read operation timedout %s", dev->name);
-			k_sem_give(&data->sem);
+			LOG_ERR("Write operation timed out %s", dev->name);
+			k_sem_give(&dev_data->sem);
 			return -ETIMEDOUT;
 		}
 		k_sleep(K_MSEC(5));
 	}
 
-	k_sem_give(&data->sem);
+	k_sem_give(&dev_data->sem);
 	return 0;
 }
 
@@ -119,8 +121,8 @@ static int mdio_stm32_initialize(const struct device *dev)
 	__ASSERT_NO_MSG(dev != NULL);
 	__ASSERT_NO_MSG(dev->data != NULL);
 	__ASSERT_NO_MSG(dev->config != NULL);
-	const struct mdio_stm32_dev_config *const cfg = dev->config;
-	struct mdio_stm32_dev_data *const data = dev->data;
+	struct mdio_stm32_dev_config const *cfg = dev->config;
+	struct mdio_stm32_dev_data *data = dev->data;
 	int retval;
 
 	retval = k_sem_init(&data->sem, 1, 1);
@@ -139,12 +141,14 @@ static const struct mdio_driver_api mdio_stm32_driver_api = {
 
 #define MDIO_STM32_DEVICE(n)                                                                       \
 	PINCTRL_DT_INST_DEFINE(n);                                                                 \
-	static struc mdio_stm32_dev_data mdio_stm32_dev_data##n;                                   \
-	static struc mdio_stm32_dev_config mdio_stm32_dev_config##n = {	\
-		.regs = (ETH_TypeDef *)DT_REG_ADDR(DT_INST_PARENT(n)), \
-		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n), \ 
-		.protocol = DT_INST_ENUM_IDX(n, protocol), \
-	};                          \
+	static struct mdio_stm32_dev_data mdio_stm32_dev_data##n;                                  \
+	static struct mdio_stm32_dev_config mdio_stm32_dev_config##n = {                           \
+		.regs = (ETH_TypeDef *)DT_REG_ADDR(DT_INST_PARENT(n)),                             \
+		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),                                         \
+		.protocol = DT_INST_ENUM_IDX(n, protocol),                                         \
+	};                                                                                         \
 	DEVICE_DT_INST_DEFINE(n, &mdio_stm32_initialize, NULL, &mdio_stm32_dev_data##n,            \
 			      &mdio_stm32_dev_config##n, POST_KERNEL, CONFIG_MDIO_INIT_PRIORITY,   \
 			      &mdio_stm32_driver_api);
+
+DT_INST_FOREACH_STATUS_OKAY(MDIO_STM32_DEVICE)
