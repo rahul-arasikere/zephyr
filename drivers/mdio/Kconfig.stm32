@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+
+config MDIO_STM32
+	bool "ST STM32 MDIO driver"
+	depends on ETH_STM32_HAL
+	default y
+	help
+	  Enable ST STM32 Family Ethernet based MDIO driver.

@@ -29,6 +29,11 @@
 				 <&rcc STM32_CLOCK_BUS_AHB1 0x00008000>,
 				 <&rcc STM32_CLOCK_BUS_AHB1 0x00010000>;
 			status = "disabled";
+
+			mdio: mdio {
+				compatible = "st,stm32-mdio";
+				status = "disabled";
+			};
 		};
 	};
 };
