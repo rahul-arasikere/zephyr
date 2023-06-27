@@ -16,6 +16,9 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(mdio_stm32, CONFIG_MDIO_LOG_LEVEL);
 
+#define STM32_SET_PHY_DEV_ADDR(addr) ((addr << ETH_MACMIIAR_PA_Pos) & ETH_MACMIIAR_PA_Msk)
+#define STM32_SET_PHY_REG_ADDR(addr) ((addr << ETH_MACMIIAR_MR_Pos) & ETH_MACMIIAR_MR_Msk)
+
 struct mdio_stm32_dev_data {
 	struct k_sem sem;
 };
@@ -26,24 +29,89 @@ struct mdio_stm32_dev_config {
 	int protocol;
 };
 
-static int mdio_stm32_transfer(const struct device *dev, uint8_t prtadm, uint8_t devad, uint8_t rw, uint16_t data_in, uint16_t *data_out) {
-	
-}
-
 static void mdio_stm32_bus_enable(const struct device *dev)
 {
+	/* Does nothing */
 }
 
 static void mdio_stm32_bus_disable(const struct device *dev)
 {
+	/* Does nothing */
 }
 
 static int mdio_stm32_read(const struct device *dev, uint8_t prtad, uint8_t devad, uint16_t *data)
 {
+	const struct mdio_stm32_dev_config const *cfg = dev->config;
+	const struct mdio_stm32_dev_data const *data = dev->data;
+	int timeout = 50;
+
+	k_sem_take(&data->sem, K_FOREVER);
+
+	uint32_t tmpreg1 = cfg->reg->MACMIIAR;
+	if (cfg->protocol == CLAUSE_22) {
+		tmpreg1 &= ~ETH_MACMIIAR_CR_MASK;          /* Preserve clock bits */
+		tmpreg1 |= STM32_SET_PHY_DEV_ADDR(prtad)   /* Set PHY Device Address*/
+			   | STM32_SET_PHY_REG_ADDR(devad) /* Set PHY Register Address*/
+			   | ETH_MACMIIAR_MB;              /* Set the busy bit */
+		tmpreg1 &= ~ETH_MACMIIAR_MR;               /* Set Read Mode */
+	} else {
+		/* We might have to manually bit bang the other frame types */
+		LOG_ERR("Unsupported protocol");
+	}
+
+	cfg->regs->MACMIIAR = tmpreg1;
+
+	while (cfg->regs->MACMIIAR & ETH_MACMIIAR_MB == ETH_MACMIIAR_MB) {
+		if (timeout-- == 0) {
+			LOG_ERR("Read operation timedout %s", dev->name);
+			k_sem_give(&data->sem);
+			return -ETIMEDOUT;
+		}
+		k_sleep(K_MSEC(5));
+	}
+
+	/* Move the data out of the PHY register. */
+	*data = ((cfg->regs->MACMIIDR >> ETH_MACMIIDR_MD_Pos) & ETH_MACMIIDR_MD_Msk);
+
+	k_sem_give(&data->sem);
+	return 0;
 }
 
 static int mdio_stm32_write(const struct device *dev, uint8_t prtad, uint8_t devad, uint16_t data)
 {
+	const struct mdio_stm32_dev_config const *cfg = dev->config;
+	const struct mdio_stm32_dev_data const *data = dev->data;
+	int timeout = 50;
+
+	k_sem_take(&data->sem, K_FOREVER);
+
+	uint32_t tmpreg1 = cfg->reg->MACMIIAR;
+	if (cfg->protocol == CLAUSE_22) {
+		tmpreg1 &= ~ETH_MACMIIAR_CR_MASK;          /* Preserve clock bits */
+		tmpreg1 |= STM32_SET_PHY_DEV_ADDR(prtad)   /* Set PHY Device Address*/
+			   | STM32_SET_PHY_REG_ADDR(devad) /* Set PHY Register Address*/
+			   | ETH_MACMIIAR_MW               /* Set Write Mode */
+			   | ETH_MACMIIAR_MB;              /* Set the busy bit */
+	} else {
+		/* We might have to manually bit bang the other frame types */
+		LOG_ERR("Unsupported protocol");
+	}
+
+	/* Set the data to write */
+	cfg->regs->MACMIIDR = (data & ETH_MACMIIDR_MD_Msk) << ETH_MACMIIDR_MD_Pos;
+	cfg->regs->MACMIIAR = tmpreg1;
+
+	while (cfg->regs->MACMIIAR & ETH_MACMIIAR_MB == ETH_MACMIIAR_MB) {
+		if (timeout-- == 0) {
+			LOG_ERR("Read operation timedout %s", dev->name);
+			k_sem_give(&data->sem);
+			return -ETIMEDOUT;
+		}
+		k_sleep(K_MSEC(5));
+	}
+
+	k_sem_give(&data->sem);
+	return 0;
 }
 
 static int mdio_stm32_initialize(const struct device *dev)
