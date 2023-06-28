@@ -23,6 +23,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <zephyr/net/net_pkt.h>
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/ethernet.h>
+#include <zephyr/net/phy.h>
 #include <ethernet/eth_stats.h>
 #include <soc.h>
 #include <zephyr/sys/printk.h>
@@ -216,19 +217,6 @@ static inline uint16_t allocate_tx_buffer(void)
 #if defined(CONFIG_SOC_SERIES_STM32H7X) || defined(CONFIG_ETH_STM32_HAL_API_V2)
 static ETH_TxPacketConfig tx_config;
 #endif
-
-static HAL_StatusTypeDef read_eth_phy_register(ETH_HandleTypeDef *heth,
-						uint32_t PHYAddr,
-						uint32_t PHYReg,
-						uint32_t *RegVal)
-{
-#if defined(CONFIG_SOC_SERIES_STM32H7X) || defined(CONFIG_ETH_STM32_HAL_API_V2)
-	return HAL_ETH_ReadPHYRegister(heth, PHYAddr, PHYReg, RegVal);
-#else
-	ARG_UNUSED(PHYAddr);
-	return HAL_ETH_ReadPHYRegister(heth, PHYReg, RegVal);
-#endif /* CONFIG_SOC_SERIES_STM32H7X || CONFIG_ETH_STM32_HAL_API_V2 */
-}
 
 static inline void setup_mac_filter(ETH_HandleTypeDef *heth)
 {
@@ -866,8 +854,6 @@ static void rx_thread(void *arg1, void *unused1, void *unused2)
 	struct eth_stm32_hal_dev_data *dev_data;
 	struct net_pkt *pkt;
 	int res;
-	uint32_t status;
-	HAL_StatusTypeDef hal_ret = HAL_OK;
 
 	__ASSERT_NO_MSG(arg1 != NULL);
 	ARG_UNUSED(unused1);
@@ -882,12 +868,6 @@ static void rx_thread(void *arg1, void *unused1, void *unused2)
 		res = k_sem_take(&dev_data->rx_int_sem,
 			K_MSEC(CONFIG_ETH_STM32_CARRIER_CHECK_RX_IDLE_TIMEOUT_MS));
 		if (res == 0) {
-			/* semaphore taken, update link status and receive packets */
-			if (dev_data->link_up != true) {
-				dev_data->link_up = true;
-				net_eth_carrier_on(get_iface(dev_data,
-							     vlan_tag));
-			}
 			while ((pkt = eth_rx(dev, &vlan_tag)) != NULL) {
 				res = net_recv_data(net_pkt_iface(pkt), pkt);
 				if (res < 0) {
@@ -896,27 +876,6 @@ static void rx_thread(void *arg1, void *unused1, void *unused2)
 					LOG_ERR("Failed to enqueue frame "
 						"into RX queue: %d", res);
 					net_pkt_unref(pkt);
-				}
-			}
-		} else if (res == -EAGAIN) {
-			/* semaphore timeout period expired, check link status */
-			hal_ret = read_eth_phy_register(&dev_data->heth,
-				    PHY_ADDR, PHY_BSR, (uint32_t *) &status);
-			if (hal_ret == HAL_OK) {
-				if ((status & PHY_LINKED_STATUS) == PHY_LINKED_STATUS) {
-					if (dev_data->link_up != true) {
-						dev_data->link_up = true;
-						net_eth_carrier_on(
-							get_iface(dev_data,
-								  vlan_tag));
-					}
-				} else {
-					if (dev_data->link_up != false) {
-						dev_data->link_up = false;
-						net_eth_carrier_off(
-							get_iface(dev_data,
-								  vlan_tag));
-					}
 				}
 			}
 		}
@@ -1470,19 +1429,44 @@ static void net_if_stm32_mcast_cb(struct net_if *iface,
 
 #endif /* CONFIG_ETH_STM32_MULTICAST_FILTER */
 
+static void phy_link_state_changed(const struct device *pdev,
+				   struct phy_link_state *state,
+				   void *user_data)
+{
+	const struct device *dev = (const struct device *) user_data;
+	struct eth_stm32_hal_dev_data *const dev_data = dev->data;
+
+	bool is_up;
+	is_up = state->is_up;
+
+	if(is_up && !dev_data->link_up) {
+		LOG_INF("Link up");
+
+		dev_data->link_up = true;
+		net_eth_carrier_on(get_iface(dev_data,
+								  NET_VLAN_TAG_UNSPEC));
+		
+
+	} else if (!is_up && dev_data->link_up) {
+		LOG_INF("Link down");
+		dev_data->link_up = false;
+		net_eth_carrier_off(get_iface(dev_data,
+								  NET_VLAN_TAG_UNSPEC));
+
+	}
+}
+
 static void eth_iface_init(struct net_if *iface)
 {
-	const struct device *dev;
-	struct eth_stm32_hal_dev_data *dev_data;
+	__ASSERT_NO_MSG(iface != NULL);
+	const struct device *dev  = net_if_get_device(iface);
+	__ASSERT_NO_MSG(dev != NULL);
+	struct eth_stm32_hal_dev_data *dev_data = dev->data;
+	__ASSERT_NO_MSG(dev_data != NULL);
+	const struct eth_stm32_hal_dev_cfg *const cfg = dev->config;
+	__ASSERT_NO_MSG(cfg != NULL);
 	bool is_first_init = false;
 
-	__ASSERT_NO_MSG(iface != NULL);
-
-	dev = net_if_get_device(iface);
-	__ASSERT_NO_MSG(dev != NULL);
-
-	dev_data = dev->data;
-	__ASSERT_NO_MSG(dev_data != NULL);
 
 	/* For VLAN, this value is only used to get the correct L2 driver.
 	 * The iface pointer in context should contain the main interface
@@ -1504,12 +1488,19 @@ static void eth_iface_init(struct net_if *iface)
 
 	ethernet_init(iface);
 
+	if (device_is_ready(cfg->phy_dev)) {
+	phy_link_callback_set(cfg->phy_dev, &phy_link_state_changed,
+					(void *)dev);
+
+	} else {
+		LOG_ERR("PHY device not ready");
+	}
+
 	net_if_carrier_off(iface);
 
 	net_lldp_set_lldpdu(iface);
 
 	if (is_first_init) {
-		const struct eth_stm32_hal_dev_cfg *cfg = dev->config;
 		/* Now that the iface is setup, we are safe to enable IRQs. */
 		__ASSERT_NO_MSG(cfg->config_func != NULL);
 		cfg->config_func();
@@ -1647,6 +1638,11 @@ static const struct eth_stm32_hal_dev_cfg eth0_config = {
 		      .enr = DT_INST_CLOCKS_CELL_BY_NAME(0, mac_clk_tx, bits)},
 	.pclken_rx = {.bus = DT_INST_CLOCKS_CELL_BY_NAME(0, mac_clk_rx, bus),
 		      .enr = DT_INST_CLOCKS_CELL_BY_NAME(0, mac_clk_rx, bits)},
+#if DT_NODE_EXISTS(DT_INST_CHILD(0, phy))
+	.phy_dev = DEVICE_DT_GET(DT_INST_CHILD(0, phy)),
+#else
+#error "No PHY driver specified"
+#endif
 #if DT_INST_CLOCKS_HAS_NAME(0, mac_clk_ptp)
 	.pclken_ptp = {.bus = DT_INST_CLOCKS_CELL_BY_NAME(0, mac_clk_ptp, bus),
 		       .enr = DT_INST_CLOCKS_CELL_BY_NAME(0, mac_clk_ptp, bits)},
@@ -1668,7 +1664,7 @@ static struct eth_stm32_hal_dev_data eth0_data = {
 			.DuplexMode = IS_ENABLED(CONFIG_ETH_STM32_MODE_HALFDUPLEX) ?
 				      ETH_MODE_HALFDUPLEX : ETH_MODE_FULLDUPLEX,
 #endif /* !CONFIG_ETH_STM32_AUTO_NEGOTIATION_ENABLE */
-			.PhyAddress = PHY_ADDR,
+			.PhyAddress = DT_PROP(DT_INST_CHILD(0, phy), address),
 			.RxMode = ETH_RXINTERRUPT_MODE,
 			.ChecksumMode = IS_ENABLED(CONFIG_ETH_STM32_HW_CHECKSUM) ?
 					ETH_CHECKSUM_BY_HARDWARE : ETH_CHECKSUM_BY_SOFTWARE,
