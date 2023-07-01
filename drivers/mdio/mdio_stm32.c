@@ -49,7 +49,7 @@ static int mdio_stm32_read(const struct device *dev, uint8_t prtad, uint8_t deva
 
 	k_sem_take(&dev_data->sem, K_FOREVER);
 
-	uint32_t tmpreg1 = cfg->regs->MACMIIAR;
+	volatile uint32_t tmpreg1 = cfg->regs->MACMIIAR;
 	if (cfg->protocol == CLAUSE_22) {
 		tmpreg1 &= ~ETH_MACMIIAR_CR_MASK;          /* Preserve clock bits */
 		tmpreg1 |= STM32_SET_PHY_DEV_ADDR(prtad)   /* Set PHY Device Address*/
@@ -87,7 +87,7 @@ static int mdio_stm32_write(const struct device *dev, uint8_t prtad, uint8_t dev
 
 	k_sem_take(&dev_data->sem, K_FOREVER);
 
-	uint32_t tmpreg1 = cfg->regs->MACMIIAR;
+	volatile uint32_t tmpreg1 = cfg->regs->MACMIIAR;
 	if (cfg->protocol == CLAUSE_22) {
 		tmpreg1 &= ~ETH_MACMIIAR_CR_MASK;          /* Preserve clock bits */
 		tmpreg1 |= STM32_SET_PHY_DEV_ADDR(prtad)   /* Set PHY Device Address*/
