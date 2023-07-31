@@ -28,6 +28,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <zephyr/sys/printk.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <zephyr/net/phy.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/irq.h>
 #include <zephyr/net/lldp.h>
@@ -216,19 +217,6 @@ static inline uint16_t allocate_tx_buffer(void)
 #if defined(CONFIG_SOC_SERIES_STM32H7X) || defined(CONFIG_ETH_STM32_HAL_API_V2)
 static ETH_TxPacketConfig tx_config;
 #endif
-
-static HAL_StatusTypeDef read_eth_phy_register(ETH_HandleTypeDef *heth,
-						uint32_t PHYAddr,
-						uint32_t PHYReg,
-						uint32_t *RegVal)
-{
-#if defined(CONFIG_SOC_SERIES_STM32H7X) || defined(CONFIG_ETH_STM32_HAL_API_V2)
-	return HAL_ETH_ReadPHYRegister(heth, PHYAddr, PHYReg, RegVal);
-#else
-	ARG_UNUSED(PHYAddr);
-	return HAL_ETH_ReadPHYRegister(heth, PHYReg, RegVal);
-#endif /* CONFIG_SOC_SERIES_STM32H7X || CONFIG_ETH_STM32_HAL_API_V2 */
-}
 
 static inline void setup_mac_filter(ETH_HandleTypeDef *heth)
 {
@@ -866,7 +854,7 @@ static void rx_thread(void *arg1, void *unused1, void *unused2)
 	struct eth_stm32_hal_dev_data *dev_data;
 	struct net_pkt *pkt;
 	int res;
-	uint32_t status;
+	uint16_t status;
 	HAL_StatusTypeDef hal_ret = HAL_OK;
 
 	__ASSERT_NO_MSG(arg1 != NULL);
@@ -896,27 +884,6 @@ static void rx_thread(void *arg1, void *unused1, void *unused2)
 					LOG_ERR("Failed to enqueue frame "
 						"into RX queue: %d", res);
 					net_pkt_unref(pkt);
-				}
-			}
-		} else if (res == -EAGAIN) {
-			/* semaphore timeout period expired, check link status */
-			hal_ret = read_eth_phy_register(&dev_data->heth,
-				    PHY_ADDR, PHY_BSR, (uint32_t *) &status);
-			if (hal_ret == HAL_OK) {
-				if ((status & PHY_LINKED_STATUS) == PHY_LINKED_STATUS) {
-					if (dev_data->link_up != true) {
-						dev_data->link_up = true;
-						net_eth_carrier_on(
-							get_iface(dev_data,
-								  vlan_tag));
-					}
-				} else {
-					if (dev_data->link_up != false) {
-						dev_data->link_up = false;
-						net_eth_carrier_off(
-							get_iface(dev_data,
-								  vlan_tag));
-					}
 				}
 			}
 		}
@@ -1117,6 +1084,31 @@ static void generate_mac(uint8_t *mac_addr)
 #endif
 }
 
+static void phy_link_state_changed(const struct device *pdev,
+				   struct phy_link_state *state,
+				   void *user_data)
+{
+	const uint16_t vlan_tag = NET_VLAN_TAG_UNSPEC;
+	const struct device *dev = (const struct device *) user_data;
+	struct eth_stm32_hal_dev_data *const dev_data = dev->data;
+	const struct eth_stm32_hal_dev_cfg *const cfg = dev->config;
+	if (state->is_up) {
+		if (dev_data->link_up != true) {
+			dev_data->link_up = true;
+			net_eth_carrier_on(
+				get_iface(dev_data,
+						vlan_tag));
+		}
+	} else {
+		if (dev_data->link_up != false) {
+			dev_data->link_up = false;
+			net_eth_carrier_off(
+				get_iface(dev_data,
+						vlan_tag));
+		}
+	}
+}
+
 static int eth_initialize(const struct device *dev)
 {
 	struct eth_stm32_hal_dev_data *dev_data;
@@ -1278,6 +1270,14 @@ static int eth_initialize(const struct device *dev)
 		dev_data->mac_addr[2], dev_data->mac_addr[3],
 		dev_data->mac_addr[4], dev_data->mac_addr[5]);
 
+	if (device_is_ready(cfg->phy_dev)) {
+		phy_link_callback_set(cfg->phy_dev, &phy_link_state_changed,
+				      (void *)dev);
+
+	} else {
+		LOG_ERR("PHY device not ready");
+	}
+	
 	return 0;
 }
 
