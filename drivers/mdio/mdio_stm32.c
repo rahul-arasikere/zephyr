@@ -53,9 +53,9 @@ static int mdio_stm32_read(const struct device *dev, uint8_t prtad, uint8_t deva
 	if (cfg->protocol == CLAUSE_22) {
 		tmpreg1 &= ~ETH_MACMIIAR_CR_MASK;          /* Preserve clock bits */
 		tmpreg1 |= STM32_SET_PHY_DEV_ADDR(prtad)   /* Set PHY Device Address*/
-			   | STM32_SET_PHY_REG_ADDR(devad) /* Set PHY Register Address*/
-			   | ETH_MACMIIAR_MB;              /* Set the busy bit */
+			   | STM32_SET_PHY_REG_ADDR(devad); /* Set PHY Register Address*/
 		tmpreg1 &= ~ETH_MACMIIAR_MR;               /* Set Read Mode */
+		tmpreg1 |= ETH_MACMIIAR_MB;              /* Set the busy bit */ 
 	} else {
 		/* We might have to manually bit bang the other frame types */
 		LOG_ERR("Unsupported protocol");

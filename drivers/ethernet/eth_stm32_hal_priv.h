@@ -26,6 +26,7 @@ struct eth_stm32_hal_dev_cfg {
 	struct stm32_pclken pclken;
 	struct stm32_pclken pclken_rx;
 	struct stm32_pclken pclken_tx;
+	const struct device *phy_dev;
 #if DT_INST_CLOCKS_HAS_NAME(0, mac_clk_ptp)
 	struct stm32_pclken pclken_ptp;
 #endif
