@@ -54,7 +54,7 @@ static int mdio_stm32_read(const struct device *dev, uint8_t prtad, uint8_t deva
 		tmpreg1 &= ~ETH_MACMIIAR_CR_MASK;          /* Preserve clock bits */
 		tmpreg1 |= STM32_SET_PHY_DEV_ADDR(prtad)   /* Set PHY Device Address*/
 			   | STM32_SET_PHY_REG_ADDR(devad); /* Set PHY Register Address*/
-		tmpreg1 &= ~ETH_MACMIIAR_MR;               /* Set Read Mode */
+		tmpreg1 &= ~ETH_MACMIIAR_MW;               /* Set Read Mode */
 		tmpreg1 |= ETH_MACMIIAR_MB;              /* Set the busy bit */ 
 	} else {
 		/* We might have to manually bit bang the other frame types */
@@ -100,7 +100,7 @@ static int mdio_stm32_write(const struct device *dev, uint8_t prtad, uint8_t dev
 	}
 
 	/* Set the data to write */
-	cfg->regs->MACMIIDR = (data & ETH_MACMIIDR_MD_Msk) << ETH_MACMIIDR_MD_Pos;
+	cfg->regs->MACMIIDR = (data << ETH_MACMIIDR_MD_Pos) & ETH_MACMIIDR_MD_Msk;
 	cfg->regs->MACMIIAR = tmpreg1;
 
 	while ((cfg->regs->MACMIIAR & ETH_MACMIIAR_MB) == ETH_MACMIIAR_MB) {

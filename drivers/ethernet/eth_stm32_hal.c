@@ -855,11 +855,6 @@ static void rx_thread(void *arg1, void *unused1, void *unused2)
 	struct eth_stm32_hal_dev_data *dev_data;
 	struct net_pkt *pkt;
 	int res;
-<<<<<<< HEAD
-	uint16_t status;
-	HAL_StatusTypeDef hal_ret = HAL_OK;
-=======
->>>>>>> 5629b3b88612182a1f38439bb023ba94580775fa
 
 	__ASSERT_NO_MSG(arg1 != NULL);
 	ARG_UNUSED(unused1);
@@ -1261,20 +1256,10 @@ static int eth_initialize(const struct device *dev)
 
 	setup_mac_filter(heth);
 
-
-
 	LOG_DBG("MAC %02x:%02x:%02x:%02x:%02x:%02x",
 		dev_data->mac_addr[0], dev_data->mac_addr[1],
 		dev_data->mac_addr[2], dev_data->mac_addr[3],
 		dev_data->mac_addr[4], dev_data->mac_addr[5]);
-
-	if (device_is_ready(cfg->phy_dev)) {
-		phy_link_callback_set(cfg->phy_dev, &phy_link_state_changed,
-				      (void *)dev);
-
-	} else {
-		LOG_ERR("PHY device not ready");
-	}
 	
 	return 0;
 }
@@ -1467,33 +1452,6 @@ static void net_if_stm32_mcast_cb(struct net_if *iface,
 }
 
 #endif /* CONFIG_ETH_STM32_MULTICAST_FILTER */
-
-static void phy_link_state_changed(const struct device *pdev,
-				   struct phy_link_state *state,
-				   void *user_data)
-{
-	const struct device *dev = (const struct device *) user_data;
-	struct eth_stm32_hal_dev_data *const dev_data = dev->data;
-
-	bool is_up;
-	is_up = state->is_up;
-
-	if(is_up && !dev_data->link_up) {
-		LOG_INF("Link up");
-
-		dev_data->link_up = true;
-		net_eth_carrier_on(get_iface(dev_data,
-								  NET_VLAN_TAG_UNSPEC));
-		
-
-	} else if (!is_up && dev_data->link_up) {
-		LOG_INF("Link down");
-		dev_data->link_up = false;
-		net_eth_carrier_off(get_iface(dev_data,
-								  NET_VLAN_TAG_UNSPEC));
-
-	}
-}
 
 static void eth_iface_init(struct net_if *iface)
 {
