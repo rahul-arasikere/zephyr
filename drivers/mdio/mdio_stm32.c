@@ -139,15 +139,15 @@ static const struct mdio_driver_api mdio_stm32_driver_api = {
 	.bus_disable = mdio_stm32_bus_disable,
 };
 
-#define MDIO_STM32_DEVICE(n)                                                                       \
-	PINCTRL_DT_INST_DEFINE(n);                                                                 \
-	static struct mdio_stm32_dev_data mdio_stm32_dev_data##n;                                  \
-	static struct mdio_stm32_dev_config mdio_stm32_dev_config##n = {                           \
-		.regs = (ETH_TypeDef *)DT_REG_ADDR(DT_INST_PARENT(n)),                             \
-		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),                                         \
-		.protocol = DT_INST_ENUM_IDX(n, protocol),                                         \
-	};                                                                                         \
-	DEVICE_DT_INST_DEFINE(n, &mdio_stm32_initialize, NULL, &mdio_stm32_dev_data##n,            \
+#define MDIO_STM32_DEVICE(n)                                                           \
+	PINCTRL_DT_INST_DEFINE(n);                                                         \
+	static struct mdio_stm32_dev_data mdio_stm32_dev_data##n;                          \
+	static struct mdio_stm32_dev_config mdio_stm32_dev_config##n = {                   \
+		.regs = (ETH_TypeDef *)DT_REG_ADDR(DT_INST_PARENT(n)),                         \
+		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),                                     \
+		.protocol = DT_INST_ENUM_IDX(n, protocol),                                     \
+	};                                                                                 \
+	DEVICE_DT_INST_DEFINE(n, &mdio_stm32_initialize, NULL, &mdio_stm32_dev_data##n,    \
 			      &mdio_stm32_dev_config##n, POST_KERNEL, CONFIG_MDIO_INIT_PRIORITY,   \
 			      &mdio_stm32_driver_api);
 
