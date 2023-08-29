@@ -29,6 +29,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <zephyr/sys/printk.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <zephyr/net/phy.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/irq.h>
 #include <zephyr/net/lldp.h>
@@ -1076,6 +1077,31 @@ static void generate_mac(uint8_t *mac_addr)
 #endif
 }
 
+static void phy_link_state_changed(const struct device *pdev,
+				   struct phy_link_state *state,
+				   void *user_data)
+{
+	const uint16_t vlan_tag = NET_VLAN_TAG_UNSPEC;
+	const struct device *dev = (const struct device *) user_data;
+	struct eth_stm32_hal_dev_data *const dev_data = dev->data;
+	const struct eth_stm32_hal_dev_cfg *const cfg = dev->config;
+	if (state->is_up) {
+		if (dev_data->link_up != true) {
+			dev_data->link_up = true;
+			net_eth_carrier_on(
+				get_iface(dev_data,
+						vlan_tag));
+		}
+	} else {
+		if (dev_data->link_up != false) {
+			dev_data->link_up = false;
+			net_eth_carrier_off(
+				get_iface(dev_data,
+						vlan_tag));
+		}
+	}
+}
+
 static int eth_initialize(const struct device *dev)
 {
 	struct eth_stm32_hal_dev_data *dev_data;
@@ -1230,13 +1256,11 @@ static int eth_initialize(const struct device *dev)
 
 	setup_mac_filter(heth);
 
-
-
 	LOG_DBG("MAC %02x:%02x:%02x:%02x:%02x:%02x",
 		dev_data->mac_addr[0], dev_data->mac_addr[1],
 		dev_data->mac_addr[2], dev_data->mac_addr[3],
 		dev_data->mac_addr[4], dev_data->mac_addr[5]);
-
+	
 	return 0;
 }
 
@@ -1428,33 +1452,6 @@ static void net_if_stm32_mcast_cb(struct net_if *iface,
 }
 
 #endif /* CONFIG_ETH_STM32_MULTICAST_FILTER */
-
-static void phy_link_state_changed(const struct device *pdev,
-				   struct phy_link_state *state,
-				   void *user_data)
-{
-	const struct device *dev = (const struct device *) user_data;
-	struct eth_stm32_hal_dev_data *const dev_data = dev->data;
-
-	bool is_up;
-	is_up = state->is_up;
-
-	if(is_up && !dev_data->link_up) {
-		LOG_INF("Link up");
-
-		dev_data->link_up = true;
-		net_eth_carrier_on(get_iface(dev_data,
-								  NET_VLAN_TAG_UNSPEC));
-		
-
-	} else if (!is_up && dev_data->link_up) {
-		LOG_INF("Link down");
-		dev_data->link_up = false;
-		net_eth_carrier_off(get_iface(dev_data,
-								  NET_VLAN_TAG_UNSPEC));
-
-	}
-}
 
 static void eth_iface_init(struct net_if *iface)
 {
