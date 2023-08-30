@@ -51,7 +51,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #error DTCM for DMA buffer is activated but zephyr,dtcm is not present in dts
 #endif
 
-#define PHY_ADDR	CONFIG_ETH_STM32_HAL_PHY_ADDRESS
+// #define PHY_ADDR	CONFIG_ETH_STM32_HAL_PHY_ADDRESS
 
 #if defined(CONFIG_SOC_SERIES_STM32H7X)
 
@@ -1084,7 +1084,6 @@ static void phy_link_state_changed(const struct device *pdev,
 	const uint16_t vlan_tag = NET_VLAN_TAG_UNSPEC;
 	const struct device *dev = (const struct device *) user_data;
 	struct eth_stm32_hal_dev_data *const dev_data = dev->data;
-	const struct eth_stm32_hal_dev_cfg *const cfg = dev->config;
 	if (state->is_up) {
 		if (dev_data->link_up != true) {
 			dev_data->link_up = true;
