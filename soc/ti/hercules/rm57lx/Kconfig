@@ -1,0 +1,10 @@
+# Texas Instruments Hercules RM57Lx
+# Copyright (c) 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SERIES_RM57LX
+    select ARM
+    select CPU_CORTEX_R5
+    select CPU_HAS_MPU
+    select VFP_DP_D16
+    select HAS_SEGGER_RTT if ZEPHYR_SEGGER_MODULE    

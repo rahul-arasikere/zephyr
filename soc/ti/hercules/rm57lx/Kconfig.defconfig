@@ -1,0 +1,10 @@
+# Texas Instruments Hercules RM57Lx
+# Copyright (c) 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_SERIES_RM57LX
+
+config NUM_IRQS
+    default 128
+
+endif # SOC_SERIES_RM57LX

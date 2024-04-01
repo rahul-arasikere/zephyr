@@ -1,0 +1,22 @@
+# Texas Instuments Hercules RM57Lx
+
+# Copyright (c) 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SERIES_RM57LX
+    bool
+    select SOC_FAMILY_TI_HERCULES
+    help
+      Enable support for TI Hercules RM57Lx SoCs
+
+config SOC_RM57L843ZWT
+    bool
+    select SOC_SERIES_RM57LX
+    help
+      RM57L843ZWT
+
+config SOC_SERIES
+    default "rm57lx" if SOC_SERIES_RM57LX
+
+config SOC
+    default "rm57l843zwt" if SOC_RM57L843ZWT
