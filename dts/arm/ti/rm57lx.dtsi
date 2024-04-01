@@ -1,0 +1,113 @@
+/**
+ * Copyright (c) 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <mem.h>
+#include <arm/armv7-r.dtsi>
+#include <arm/dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cpu@0 {
+            compatible = "arm,cortex-r5f";
+            reg = <0>;
+        };
+    };
+
+    soc {
+        pinctrl: pinctrl@ffff1c00 {
+            reg = <0xffff1c00 0x3ff>;
+            compatible = "ti,hercules-iomm";
+        };
+
+        gpio-controller: gpio-controller@fff7bc00{
+            reg = <0xfff7bc00 0x30>;
+            compatible = "ti,hercules-gio";
+
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            gioa: gpio@fff7bc34 {
+                reg = <0xfff7bc43 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            giob: gpio@fff7bc54 {
+                reg = <0xfff7bc54 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            giosci1: gpio@fff7e440 {
+                reg = <0xfff7e440 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            giosci2: gpio@fff7e640 {
+                reg = <0xfff7e640 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            giosci3: gpio@fff7e540 {
+                reg = <0xfff7e540 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            giosci4: gpio@fff7e740 {
+                reg = <0xfff7e740 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            giomibspi1: gpio@fff7f418 {
+                reg = <0xfff7f418 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            giomibspi2: gpio@fff7f618 {
+                reg = <0xfff7f618 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+            giomibspi3: gpio@fff7f818 {
+                reg = <0xfff7f818 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+            giomibspi4: gpio@fff7fa18 {
+                reg = <0xfff7fa18 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+            giomibspi5: gpio@fff7fc18 {
+                reg = <0xfff7fc18 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            giohet1: gpio@fff7b84c {
+                reg = <0xfff7b84c 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            giohet2: gpio@fff7b94c {
+                reg = <0xfff7b94c 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            gioi2c1: gpio@fff7d44c {
+                reg = <0xfff7d44c 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            gioi2c2: gpio@fff7d54c {
+                reg = <0xfff7d54c 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+
+            giortp: gpio@fffffa38 {
+                reg = <0xfffffa38 0x20>;
+                compatible = "ti,hercules-gio";
+            };
+        };
+    };
+};

@@ -1,0 +1,16 @@
+# Copyrights (c) 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+identifier: rm57lx_launchxl2
+name: TI Hercules RM57Lx LaunchPad
+type: mcu
+arch: arm
+ram: 512
+flash: 4096
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+supported:
+  - gpio
+vendor: ti

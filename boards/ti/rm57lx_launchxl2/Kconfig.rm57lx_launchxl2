@@ -1,0 +1,7 @@
+# TI RM57Lx LaunchXL2 board
+
+# Copyrights (c) 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_RM57LX_LAUNCHXL2
+    select SOC_RM57L843WZT

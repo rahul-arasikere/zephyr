@@ -1,0 +1,9 @@
+# Texas Instruments Hercules Family
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+
+if SOC_FAMILY_TI_HERCULES
+
+rsource "*/Kconfig.defconfig"
+
+endif # SOC_FAMILY_TI_HERCULES

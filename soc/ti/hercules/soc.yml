@@ -1,0 +1,6 @@
+family:
+- name: ti_hercules
+  series:
+  - name: rm57lx
+    socs:
+    - name: rm57l843zwt

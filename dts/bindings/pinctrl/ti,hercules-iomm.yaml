@@ -1,0 +1,69 @@
+# Copyright (c) 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+# This binding implements the required configuration features for the RM57Lx IOMM module as described in Chapter 6 of the TRM.
+
+description: |
+  The TI Hercules series safety processor include a I/O Multiplexing and Control Module (IOMM)
+  to control and enable the multiplexing of pins. It consists of memory mapped
+  registers to  configure individual pins alongs side a kicker to protect write
+  access to the pins with error indication.
+
+  Here is a list of supported standard pin properties:
+
+    - drive-push-pull: Push-pull drive mode (default, not required).
+    - drive-open-drain: Open-drain drive mode.
+    - bias-disable: Disable pull-up/down (default, not required).
+    - bias-pull-up: Enable pull-up resistor.
+    - bias-pull-down: Enable pull-down resistor.
+    - output-enable: Enable output for the pin
+    - output-high: Enable high output.
+    - output-low: Enable low output. (default not required)
+
+compatible: "ti,hercules-iomm"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+    description: |
+      Base address and size of the memory mapped registers of the IOMM.
+  
+child-binding:
+  description: |
+    RM57Lx Pin Configuration node.
+
+  include: 
+    - name: pincfg-node.yaml
+      property-allowlist:
+        - drive-push-pull
+        - drive-open-drain
+        - bias-disable
+        - bias-pull-up
+        - bias-pull-down
+        - output-high
+        - output-low
+        - output-enable
+
+  properties:
+    pinmux:
+      required: true
+      type: int
+      description: |
+        Defines the alternate function this pin maps to.
+        It accepts an integer array representing gpio pin number 
+        and mux setting
+
+        With:
+          - Byte offset to where byte is located to control the ball.
+          - Alternate function to map to:
+            0: Default Function
+            1: Alternate Function 1 (if available)
+            2: Alternate Function 2 (if available)
+            ...
+            5: Alternate Function 5 (if available)
+          In case multiple bits are set, the hardware uses the default function.
+          Other functionality can be set using the generic pincfg-node 
+          boolean values.
+    
