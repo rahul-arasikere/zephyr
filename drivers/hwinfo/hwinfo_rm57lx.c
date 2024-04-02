@@ -36,28 +36,21 @@ int z_impl_hwinfo_get_reset_cause(uint32_t *cause)
 	uint32_t flags = 0;
 	if ((SYS_EXCEPTION & (uint32_t)POWERON_RESET) != 0U) {
 		flags = RESET_POR;
-		SYS_EXCEPTION |= 0x0000FFFFU;
 	} else if ((SYS_EXCEPTION & (uint32_t)EXT_RESET) != 0U) {
-		SYS_EXCEPTION = (uint32_t)EXT_RESET;
 		if ((SYS_EXCEPTION & (uint32_t)OSC_FAILURE_RESET) != 0U) {
 			flags = RESET_CLOCK;
-			SYS_EXCEPTION |= (uint32_t)OSC_FAILURE_RESET;
 		} else if ((SYS_EXCEPTION &
 			    ((uint32_t)WATCHDOG_RESET | (uint32_t)WATCHDOG2_RESET)) != 0U) {
 			flags = RESET_WATCHDOG;
-			SYS_EXCEPTION |= (uint32_t)(WATCHDOG_RESET | WATCHDOG2_RESET);
 		} else if ((SYS_EXCEPTION & (uint32_t)SW_RESET) != 0U) {
 			flags = RESET_SOFTWARE;
-			SYS_EXCEPTION |= (uint32_t)SW_RESET;
 		} else {
 			flags = RESET_HARDWARE;
 		}
 	} else if ((SYS_EXCEPTION & (uint32_t)DEBUG_RESET) != 0U) {
 		flags = RESET_DEBUG;
-		SYS_EXCEPTION |= (uint32_t)DEBUG_RESET;
 	} else if ((SYS_EXCEPTION & (uint32_t)CPU0_RESET) != 0U) {
 		flags = RESET_HARDWARE;
-		SYS_EXCEPTION = (uint32_t)CPU0_RESET;
 	}
 	*cause = flags;
 	return 0;
