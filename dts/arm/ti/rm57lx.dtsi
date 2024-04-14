@@ -6,7 +6,6 @@
 
 #include <mem.h>
 #include <arm/armv7-r.dtsi>
-#include <arm/dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
     cpus {
@@ -25,7 +24,7 @@
             compatible = "ti,hercules-iomm";
         };
 
-        gpio-controller: gpio-controller@fff7bc00{
+        gpio-controller@fff7bc00{
             reg = <0xfff7bc00 0x30>;
             compatible = "ti,hercules-gio";
 
