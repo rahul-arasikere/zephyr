@@ -5,6 +5,7 @@
  */
 
 #include <mem.h>
+#include <freq.h>
 #include <arm/armv7-r.dtsi>
 
 / {
@@ -26,6 +27,53 @@
     flash0: serial-flash@0 {
         compatible = "soc-nv-flash";
         reg = <0x0 DT_SIZE_M(4)>;
+    };
+
+    clocks {
+        oscin: oscin {
+            compatible = "fixed-clock";
+            clock-frequency = <DT_FREQ_M(16)>;
+            #clock-cells = <0>;
+            status = "okay";
+        };
+
+        ext_clkin1: ext_clkin1 {
+            compatible = "fixed-clock";
+            clock-frequency = <DT_FREQ_M(8)>;
+            #clock-cells = <0>;
+            status = "disabled";
+        };
+
+        ext_clkin2: ext_clkin2 {
+            compatible = "fixed-clock";
+            clock-frequency = <DT_FREQ_M(16)>;
+            #clock-cells = <0>;
+            status = "disabled";
+        };
+
+        pll1: pll1 {
+            #clock-cells = <0>;
+            compatible = "ti,hercules-pll-clock";
+            status = "disabled";
+        };
+
+        pll2: pll2 {
+            #clock-cells = <0>;
+            compatible = "ti,hercules-pll-clock";
+            status = "disabled";
+        };
+
+        lf_lpo: lf_lpo {
+            #clock-cells = <0>;
+            compatible = "ti,hercules-lpo-clock";
+            status = "okay";
+        };
+
+        hf_lpo: hf_lpo {
+            #clock-cells = <0>;
+            compatible = "ti,hercules-lpo-clock";
+            status = "okay";
+        };
     };
 
     soc {

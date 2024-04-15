@@ -1,0 +1,85 @@
+# Copyright (c) 2024, Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  TI Hercules PLL Clock Controller
+
+  PLL takes an input of OSCIN, EXTCLKIN1 or EXTCLKIN2 as the input clock.
+
+  Frequency calculation for the output is as follows:
+
+  f(PLL) = f(IN_CLK) / NR * NF * 1 / OD * 1/ R
+
+compatible: "ti,hercules-pll-clock"
+
+include: [clock-controller.yaml, base.yaml]
+
+properties:
+  reg:
+    required: true
+
+  "#clock-cells":
+    const: 0
+
+  clocks:
+    required: true
+
+  nr:
+    type: int
+    required: true
+    description: |
+      Configurable prescale divider (NR) for the input clock. Ranges between 1 to 64.
+
+  nf:
+    type: int
+    required: true
+    description: |
+      Configurable multiplier (NF) for the input clock. Ranges between 1 to 256.
+
+  od:
+    type: int
+    required: true
+    description: |
+      Configurable postscale divider (OD). Ranges between 1 to 8.
+
+  r:
+    type: int
+    required: true
+    description: |
+      Configurable postscale divider (R). Ranges between 1 to 32.
+
+  bypass-on-pll-slip:
+    type: boolean
+    description: |
+      Switch over to oscillator on PLL slip.
+      Applies only to PLL1.
+
+  reset-on-pll-slip:
+    type: boolean
+    description: |
+      Automatically reset CPU on PLL slip.
+      Applies only to PLL1.
+
+  reset-on-oscillator-fail:
+    type: boolean
+    description: |
+      Automatically reset CPU on an oscillator failure.
+      Applies only to PLL1.
+
+  enable-freq-modulation:
+    type: boolean
+    description: |
+      Enable frequency modulation on PLL.
+      Applies only to PLL1.
+
+  ns:
+    type: int
+    description: |
+      Configurable modulation frequency.
+      Applies only to PLL1.
+
+  nv:
+    type: int
+    description: |
+      Configurable modulation depth.
+      Applies only to PLL1.

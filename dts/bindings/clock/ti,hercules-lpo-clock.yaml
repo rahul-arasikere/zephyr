@@ -1,0 +1,16 @@
+# Copyright (c) 2024, Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+description: TI Hercules LPO Clock Controller
+
+compatible: "ti,hercules-lpo-clock"
+
+include: [clock-controller.yaml, base.yaml]
+
+properties:
+  reg:
+    required: true
+
+  "#clock-cells":
+    const: 0
+
