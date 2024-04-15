@@ -1,0 +1,9 @@
+# Copyright (c) 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+config GPIO_HERCULES
+	bool "TI Hercules GIO driver"
+	default y
+	depends on DT_HAS_TI_HERCULES_GIO_ENABLED
+	help
+	  Enable the TI Hercules GIO driver.

@@ -18,6 +18,16 @@
         };
     };
 
+    sram0: memory@8000000 {
+        compatible = "mmio-sram";
+        reg = <0x08000000 DT_SIZE_K(512)>;
+    };
+
+    flash0: serial-flash@0 {
+        compatible = "soc-nv-flash";
+        reg = <0x0 DT_SIZE_M(4)>;
+    };
+
     soc {
         pinctrl: pinctrl@ffff1c00 {
             reg = <0xffff1c00 0x3ff>;
