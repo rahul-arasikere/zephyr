@@ -11,6 +11,21 @@ properties:
   reg:
     required: true
 
+  set-trim-from-otp:
+    type: boolean
+    description: |
+      Sets the trim values from flash OTP.
+  
+  enable-lpo-bias:
+    type: boolean
+    description: |
+      Enable the current source which drives the LPO.
+
+  trim:
+    type: int
+    description: |
+      Trim value for LPO. Ranges from 0 to 31 which set the corresponding 5 bits in the LPO registers.
+
   "#clock-cells":
     const: 0
 
