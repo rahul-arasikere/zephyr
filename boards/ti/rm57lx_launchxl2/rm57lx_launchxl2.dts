@@ -11,3 +11,7 @@
     model = "TI RM57Lx LaunchXL2";
     compatible = "ti,launchxl2-rm57lx";
 };
+
+&oscin {
+    status = "okay";
+};

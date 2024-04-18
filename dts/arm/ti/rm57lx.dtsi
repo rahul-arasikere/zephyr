@@ -9,6 +9,12 @@
 #include <arm/armv7-r.dtsi>
 
 / {
+
+    chosen {
+        zephyr,flash = &flash0;
+        zephyr,sram = &sram0;
+    };
+
     cpus {
         #address-cells = <1>;
         #size-cells = <0>;
