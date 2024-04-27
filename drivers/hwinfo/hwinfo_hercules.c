@@ -4,6 +4,8 @@
  */
 
 #include <zephyr/drivers/hwinfo.h>
+#include <string.h>
+
 
 #define SYS_EXCEPTION (*(volatile uint32_t *)0xffffffe4U)
 #define DEVICE_ID_REV       (*(volatile uint32_t *)0xfffffff0U)

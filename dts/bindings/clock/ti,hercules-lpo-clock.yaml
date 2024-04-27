@@ -8,8 +8,6 @@ compatible: "ti,hercules-lpo-clock"
 include: [clock-controller.yaml, base.yaml]
 
 properties:
-  reg:
-    required: true
 
   set-trim-from-otp:
     type: boolean
@@ -28,4 +26,3 @@ properties:
 
   "#clock-cells":
     const: 0
-
