@@ -9,3 +9,9 @@ config SOC_SERIES_RM57LX
     select VFP_DP_D16
     select HWINFO
     select DYNAMIC_INTERRUPTS
+	select CPU_HAS_DCLS
+	select CPU_HAS_ARM_MPU
+    select CPU_HAS_DSP
+    select CPU_HAS_DCACHE
+    select CPU_HAS_ICACHE
+    select PLATFORM_SPECIFIC_INIT
