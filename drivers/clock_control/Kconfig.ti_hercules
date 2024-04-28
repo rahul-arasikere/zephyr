@@ -4,4 +4,12 @@
 
 menuconfig CLOCK_CONTROL_TI_HERCULES
     bool "TI Hercules Global Clock Module"
+    default y
     depends on SOC_FAMILY_TI_HERCULES
+    help
+      Enable driver for the Global Clock Module (GCM) found in the TI Hercules family of MCUs
+
+if CLOCK_CONTROL_TI_HERCULES
+
+
+endif # CLOCK_CONTROL_TI_HERCULES

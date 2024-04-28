@@ -15,3 +15,4 @@ config SOC_SERIES_RM57LX
     select CPU_HAS_DCACHE
     select CPU_HAS_ICACHE
     select PLATFORM_SPECIFIC_INIT
+    select CLOCK_CONTROL
