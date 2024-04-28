@@ -45,6 +45,22 @@
         reg = <0xffffe100 256>;
     };
 
+    pcr1: syscon@ffff1000 {
+        compatible = "syscon";
+        reg = <0xffff1000 1504>;
+    };
+
+    pcr2: syscon@fcff1000 {
+        compatible = "syscon";
+        reg = <0xfcff1000 1504>;
+    };
+
+    pcr3: syscon@fff78000 {
+        compatible = "syscon";
+        reg = <0xfff78000 1504>;
+    };
+
+
     clocks {
         oscin: oscin {
             compatible = "fixed-clock";
@@ -93,12 +109,17 @@
     };
 
     soc {
+
+        gcm: clock-control {
+            compatible = "ti,hercules-gcm";
+        };
+
         pinctrl: pinctrl@ffff1c00 {
             reg = <0xffff1c00 0x3ff>;
             compatible = "ti,hercules-iomm";
         };
 
-        gpio-controller@fff7bc00{
+        gpio-controller@fff7bc00 {
             reg = <0xfff7bc00 0x30>;
             compatible = "ti,hercules-gio";
 
