@@ -35,6 +35,16 @@
         reg = <0x0 DT_SIZE_M(4)>;
     };
 
+    syscon1: syscon@ffffff00 {
+        compatible = "syscon";
+        reg = <0xffffff00 252>;
+    };
+
+    syscon2: syscon@ffffe100 {
+        compatible = "syscon";
+        reg = <0xffffe100 256>;
+    };
+
     clocks {
         oscin: oscin {
             compatible = "fixed-clock";
