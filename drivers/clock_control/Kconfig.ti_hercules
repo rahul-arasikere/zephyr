@@ -1,0 +1,7 @@
+# Copyright 2024 (c) Rahul Vagish Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+
+menuconfig CLOCK_CONTROL_TI_HERCULES
+    bool "TI Hercules Global Clock Module"
+    depends on SOC_FAMILY_TI_HERCULES

@@ -5,10 +5,10 @@
 
 #include <zephyr/drivers/hwinfo.h>
 #include <string.h>
-
+#include <soc.h>
 
 #define SYS_EXCEPTION (*(volatile uint32_t *)0xffffffe4U)
-#define DEVICE_ID_REV       (*(volatile uint32_t *)0xfffffff0U)
+#define DEVICE_ID_REV (*(volatile uint32_t *)0xfffffff0U)
 
 enum rm57lx_reset_bits {
 	POWERON_RESET = 0x8000U,
@@ -25,11 +25,11 @@ enum rm57lx_reset_bits {
 
 ssize_t z_impl_hwinfo_get_device_id(uint8_t *buffer, size_t length)
 {
-    uint32_t id = DEVICE_ID_REV;
-    if(length > sizeof(id)) {
-        length = sizeof(id);
-    } 
-    memcpy(buffer, &id, length);
+	uint32_t id = DEVICE_ID_REV;
+	if (length > sizeof(id)) {
+		length = sizeof(id);
+	}
+	memcpy(buffer, &id, length);
 	return length;
 }
 

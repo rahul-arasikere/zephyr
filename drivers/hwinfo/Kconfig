@@ -199,10 +199,10 @@ config HWINFO_RW61X
 	help
 	  Enable RW61X hwinfo driver
 
-config HWINFO_HERCULES
+config HWINFO_TI_HERCULES
 	bool "TI Hercules hwinfo driver"
 	default y
-	depends on SOC_SERIES_RM57LX
+	depends on SOC_FAMILY_TI_HERCULES
 	help
 	   Enable RM57Lx hwinfo driver
 
