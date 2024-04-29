@@ -38,6 +38,15 @@ properties:
     required: true
     description: |
       Configurable postscale divider (OD). Ranges between 1 to 8.
+    enum:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
 
   r:
     type: int
@@ -45,38 +54,19 @@ properties:
     description: |
       Configurable postscale divider (R). Ranges between 1 to 32.
 
-  bypass-on-pll-slip:
-    type: boolean
-    description: |
-      Switch over to oscillator on PLL slip.
-      Applies only to PLL1.
-
-  reset-on-pll-slip:
-    type: boolean
-    description: |
-      Automatically reset CPU on PLL slip.
-      Applies only to PLL1.
-
-  reset-on-oscillator-fail:
-    type: boolean
-    description: |
-      Automatically reset CPU on an oscillator failure.
-      Applies only to PLL1.
-
-  enable-freq-modulation:
-    type: boolean
-    description: |
-      Enable frequency modulation on PLL.
-      Applies only to PLL1.
-
   ns:
     type: int
     description: |
       Configurable modulation frequency.
-      Applies only to PLL1.
+      Applies only to PLL1. Ranges between 1 to 512.
 
   nv:
     type: int
     description: |
       Configurable modulation depth.
-      Applies only to PLL1.
+      Applies only to PLL1. Ranges between 1 to 512.
+
+  mulmod:
+    type: int
+    description: |
+      Multipler correction for PLL1 when frequency modulations is enabled. Ranges between 8 to 511.

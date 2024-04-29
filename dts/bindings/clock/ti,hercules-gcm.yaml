@@ -1,0 +1,45 @@
+# Copyright (c) 2024, Rahul Vagish Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+include: [base.yaml, clock-controller.yaml]
+
+compatible: "ti,hercules-gcm"
+
+description: |
+  TI Hercules Global Clock Module.
+
+  This node enables the GCM module drivers.
+
+properties:
+  '#clock-cells':
+    const: 2
+
+  bypass-on-pll-slip:
+    type: boolean
+    description: |
+      Switch over to oscillator on PLL slip.
+      Applies only to PLL1.
+
+  reset-on-pll-slip:
+    type: boolean
+    description: |
+      Automatically reset CPU on PLL slip.
+      Applies only to PLL1.
+
+  reset-on-oscillator-fail:
+    type: boolean
+    description: |
+      Automatically reset CPU on an oscillator failure.
+      Applies only to PLL1.
+
+  enable-freq-modulation:
+    type: boolean
+    description: |
+      Enable frequency modulation on PLL.
+      Applies only to PLL1.
+
+
+clock-cells:
+  - clock-domain
+  - flags
+  

@@ -35,12 +35,12 @@
         reg = <0x0 DT_SIZE_M(4)>;
     };
 
-    syscon1: syscon@ffffff00 {
+    sys1: syscon@ffffff00 {
         compatible = "syscon";
         reg = <0xffffff00 252>;
     };
 
-    syscon2: syscon@ffffe100 {
+    sys2: syscon@ffffe100 {
         compatible = "syscon";
         reg = <0xffffe100 256>;
     };
@@ -112,6 +112,7 @@
 
         gcm: clock-control {
             compatible = "ti,hercules-gcm";
+            #clock-cells = <2>;
         };
 
         pinctrl: pinctrl@ffff1c00 {
