@@ -42,16 +42,23 @@ struct ti_hercules_gcm_clock_config {
 	enum hercules_clk_domains domain;
 };
 
+struct ti_herc_periph_clk {
+	enum hercules_clk_domains domain;
+	int flags;
+};
+
 struct ti_hercules_gcm_clock_data {
 };
 
 static int ti_hercules_gcm_clock_on(const struct device *dev, clock_control_subsys_t sys)
 {
+	struct ti_herc_periph_clk *periph_clk = (struct ti_herc_periph_clk *)sys;
 	return 0;
 }
 
 static int ti_hercules_gcm_clock_off(const struct device *dev, clock_control_subsys_t sys)
 {
+	struct ti_herc_periph_clk *periph_clk = (struct ti_herc_periph_clk *)sys;
 	return 0;
 }
 
@@ -64,6 +71,7 @@ static enum clock_control_status ti_hercules_gcm_clock_get_status(const struct d
 static int ti_hercules_gcm_clock_get_rate(const struct device *dev, clock_control_subsys_t sys,
 					  uint32_t *rate)
 {
+	struct ti_herc_periph_clk *periph_clk = (struct ti_herc_periph_clk *)sys;
 	*rate = 0;
 	return 0;
 }
@@ -71,6 +79,7 @@ static int ti_hercules_gcm_clock_get_rate(const struct device *dev, clock_contro
 static int ti_hercules_gcm_clock_configure(const struct device *dev, clock_control_subsys_t sys,
 					   void *data)
 {
+	struct ti_herc_periph_clk *periph_clk = (struct ti_herc_periph_clk *)sys;
 	return 0;
 }
 
