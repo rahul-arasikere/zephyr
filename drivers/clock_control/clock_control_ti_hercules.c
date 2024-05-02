@@ -11,6 +11,13 @@
 #include <zephyr/device.h>
 #include <zephyr/sys/util.h>
 
+#define SYS1_NODE DT_NODELABEL(sys1)
+#define SYS2_NODE DT_NODELABEL(sys2)
+#define PCR1_NODE DT_NODELABEL(pcr1)
+#define PCR2_NODE DT_NODELABEL(pcr2)
+#define PCR3_NODE DT_NODELABEL(pcr3)
+#define ESM_NODE  DT_NODELABEL(esm)
+
 #define CLOCKS_NODE       DT_NODELABEL(clocks)
 #define OSCIN_CLOCK_NODE  DT_CHILD(CLOCKS_NODE, oscin)
 #define EXT_CLKIN1_NODE   DT_CHILD(CLOCKS_NODE, ext_clkin1)
@@ -36,6 +43,90 @@
 #define FBSLIP  BIT(9)
 #define RFSLIP  BIT(8)
 #define OSCFAIL BIT(0)
+
+#define PENA             BIT(8)
+#define ESM_SRx_PLLxSLIP BIT(10)
+
+static uint32_t _errata_disable_plls(uint32_t plls)
+{
+	uint32_t timeout = 0x10, fail_code = 0;
+	struct hercules_syscon_1_regs *sys_regs_1 = DT_REG_ADDR(SYS1_NODE);
+	struct hercules_syscon_2_regs *sys_regs_2 = DT_REG_ADDR(SYS2_NODE);
+	struct hercules_esm_regs *esm_rsgs = DT_REG_ADDR(ESM_NODE);
+	sys_regs_1->CSDISSET = plls;
+	while ((sys_regs_1->CSVSTAT & plls != 0) && timeout-- != 0) {
+		/* Clear ESM and GLBSTAT PLL slip flags */
+		sys_regs_1->GBLSTAT = FBSLIP | RFSLIP;
+
+		if ((plls & BIT(PLL1)) == BIT(PLL1)) {
+			esm_regs->SR1[0] = ESM_SRx_PLLxSLIP;
+		}
+		if ((plls & BIT(PLL2)) == BIT(PLL2)) {
+			esm_regs->SR4[0] = ESM_SRx_PLLxSLIP;
+		}
+	}
+	if (timeout == 0) {
+		fail_code = 4;
+	}
+	return fail_code;
+}
+
+/** @fn static uint32_t _errata_SSWF021_45_both_plls(uint32_t count)
+*   @brief This handles the errata for PLL1 and PLL2. This function is called in device startup
+*
+*   @param[in] count : Number of retries until both PLLs are locked successfully
+*                      Minimum value recommended is 5
+*
+*   @return 0 = Success (the PLL or both PLLs have successfully locked and then been disabled)
+*           1 = PLL1 failed to successfully lock in "count" tries
+*           2 = PLL2 failed to successfully lock in "count" tries
+*           3 = Neither PLL1 nor PLL2 successfully locked in "count" tries
+*           4 = The workaround function was not able to disable at least one of the PLLs. The most
+likely reason is that a PLL is already being used as a clock source. This can be caused by the
+workaround function being called from the wrong place in the code.
+ */
+static uint32_t _errata_SSWF021_45_both_plls(uint32_t count)
+{
+	uint32_t fail_code = 0;
+	uint32_t retries;
+	uint32_t clock_control_save;
+	struct hercules_syscon_1_regs *sys_regs_1 = DT_REG_ADDR(SYS1_NODE);
+	struct hercules_syscon_2_regs *sys_regs_2 = DT_REG_ADDR(SYS2_NODE);
+	struct hercules_esm_regs *esm_rsgs = DT_REG_ADDR(ESM_NODE);
+	clock_control_save = sys_regs_1->CLKCNTL1;
+	/* First set VCLK2 = HCLK */
+	sys_regs_1->CLKCNTL1 = clock_control_save & (PENA | (0xf << 16));
+	/* Now set VCLK = HCLK and enable peripherals */
+	sys_regs_1->CLKCNTL1 = PENA;
+	for (retries = 0; retries < count; retries++) {
+		fail_code = _errata_disable_plls(BIT(PLL1) | BIT(PLL2));
+		if (fail_code != 0) {
+			break;
+		}
+		/* Clear Global Status Register */
+		sys_regs_1->GBLSTAT = FBSLIP | RFSLIP | OSCFAIL;
+		/* Clear the ESM PLL slip flags */
+		esm_regs->SR1[0] = ESM_SRx_PLLxSLIP;
+		esm_regs->SR4[0] = ESM_SRx_PLLxSLIP;
+
+		/* set both PLLs to OSCIN/1*27/(2*1) */
+		sys_regs_1->PLLCTL1 = 0x20001A00;
+		sys_regs_1->PLLCTL2 = 0x3FC0723D;
+		sys_regs_2->PLLCTL3 = 0x20001A00;
+		sys_regs_1->CSDISCLR = BIT(PLL1) | BIT(PLL2);
+
+		/* Check for (PLL1 valid or PLL1 slip) and (PLL2 valid or PLL2 slip) */
+		while ((((sys_regs_1->CSVSTAT & BIT(PLL1)) == 0) &&
+			((esm_regs->SR1[0] & ESM_SRx_PLLxSLIP) == 0)) ||
+		       (((sys_regs_1->CSVSTAT & BIT(PLL2)) == 0) &&
+			((esm_regs->SR4[0] & ESM_SRx_PLLxSLIP) == 0))) {
+			/* Wait */
+		}
+
+		
+	}
+	return fail_code;
+}
 
 struct ti_hercules_gcm_clock_config {
 	enum hercules_clk_srcs source;
@@ -83,16 +174,11 @@ static int ti_hercules_gcm_clock_configure(const struct device *dev, clock_contr
 	return 0;
 }
 
-#define SYS1_NODE DT_NODELABEL(sys1)
-#define SYS2_NODE DT_NODELABEL(sys2)
-#define PCR1_NODE DT_NODELABEL(pcr1)
-#define PCR2_NODE DT_NODELABEL(pcr2)
-#define PCR3_NODE DT_NODELABEL(pcr3)
-
 static int ti_hercules_gcm_clock_init(const struct device *dev)
 {
-	volatile struct hercules_syscon_1_regs *sys_regs_1 = DT_REG_ADDR(SYS1_NODE);
-	volatile struct hercules_syscon_2_regs *sys_regs_2 = DT_REG_ADDR(SYS2_NODE);
+	_errata_SSWF021_45_both_plls(5);
+	struct hercules_syscon_1_regs *sys_regs_1 = DT_REG_ADDR(SYS1_NODE);
+	struct hercules_syscon_2_regs *sys_regs_2 = DT_REG_ADDR(SYS2_NODE);
 
 	/* Configure PLL control registers and enable PLLs.
 	 * The PLL takes (127 + 1024 * NR) oscillator cycles to acquire lock.

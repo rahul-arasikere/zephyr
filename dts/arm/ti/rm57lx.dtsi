@@ -35,31 +35,35 @@
         reg = <0x0 DT_SIZE_M(4)>;
     };
 
-    sys1: syscon@ffffff00 {
+    sys1: system-control@ffffff00 {
         compatible = "syscon";
         reg = <0xffffff00 252>;
     };
 
-    sys2: syscon@ffffe100 {
+    sys2: system-control@ffffe100 {
         compatible = "syscon";
         reg = <0xffffe100 256>;
     };
 
-    pcr1: syscon@ffff1000 {
+    pcr1: peripheral-control@ffff1000 {
         compatible = "syscon";
         reg = <0xffff1000 1504>;
     };
 
-    pcr2: syscon@fcff1000 {
+    pcr2: peripheral-control@fcff1000 {
         compatible = "syscon";
         reg = <0xfcff1000 1504>;
     };
 
-    pcr3: syscon@fff78000 {
+    pcr3: peripheral-control@fff78000 {
         compatible = "syscon";
         reg = <0xfff78000 1504>;
     };
 
+    esm: error-signaling-module@fffff500 {
+        compatible = "syscon";
+        reg = <0xfffff500 100>;
+    };
 
     clocks {
         oscin: oscin {
