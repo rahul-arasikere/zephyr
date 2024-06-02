@@ -6,6 +6,7 @@
 #ifndef TI_HERCULES_RM57LX_SOC_H_
 #define TI_HERCULES_RM57LX_SOC_H_
 
+#include <zephyr/devicetree.h>
 #include <zephyr/types.h>
 
 struct hercules_syscon_1_regs {
@@ -179,5 +180,12 @@ struct hercules_esm_regs {
 	uint32_t ILCR4;   /* 0x0054                 */
 	uint32_t SR4[3U]; /* 0x0058, 0x005C, 0x0060 */
 };
+
+#define SYS1_NODE DT_NODELABEL(sys1)
+#define SYS2_NODE DT_NODELABEL(sys2)
+#define PCR1_NODE DT_NODELABEL(pcr1)
+#define PCR2_NODE DT_NODELABEL(pcr2)
+#define PCR3_NODE DT_NODELABEL(pcr3)
+#define ESM_NODE  DT_NODELABEL(esm)
 
 #endif /* TI_HERCULES_RM57LX_SOC_H_ */

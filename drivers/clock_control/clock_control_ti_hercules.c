@@ -11,13 +11,6 @@
 #include <zephyr/device.h>
 #include <zephyr/sys/util.h>
 
-#define SYS1_NODE DT_NODELABEL(sys1)
-#define SYS2_NODE DT_NODELABEL(sys2)
-#define PCR1_NODE DT_NODELABEL(pcr1)
-#define PCR2_NODE DT_NODELABEL(pcr2)
-#define PCR3_NODE DT_NODELABEL(pcr3)
-#define ESM_NODE  DT_NODELABEL(esm)
-
 #define CLOCKS_NODE       DT_NODELABEL(clocks)
 #define OSCIN_CLOCK_NODE  DT_CHILD(CLOCKS_NODE, oscin)
 #define EXT_CLKIN1_NODE   DT_CHILD(CLOCKS_NODE, ext_clkin1)
