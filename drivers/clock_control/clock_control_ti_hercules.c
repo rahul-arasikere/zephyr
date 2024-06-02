@@ -50,11 +50,11 @@
 static uint32_t _errata_disable_plls(uint32_t plls)
 {
 	uint32_t timeout = 0x10, fail_code = 0;
-	struct hercules_syscon_1_regs *sys_regs_1 = DT_REG_ADDR(SYS1_NODE);
-	struct hercules_syscon_2_regs *sys_regs_2 = DT_REG_ADDR(SYS2_NODE);
-	struct hercules_esm_regs *esm_rsgs = DT_REG_ADDR(ESM_NODE);
+	volatile struct hercules_syscon_1_regs *sys_regs_1 = (void *)DT_REG_ADDR(SYS1_NODE);
+	volatile struct hercules_syscon_2_regs *sys_regs_2 = (void *)DT_REG_ADDR(SYS2_NODE);
+	volatile struct hercules_esm_regs *esm_regs = (void *)DT_REG_ADDR(ESM_NODE);
 	sys_regs_1->CSDISSET = plls;
-	while ((sys_regs_1->CSVSTAT & plls != 0) && timeout-- != 0) {
+	while (((sys_regs_1->CSVSTAT & plls) != 0) && timeout-- != 0) {
 		/* Clear ESM and GLBSTAT PLL slip flags */
 		sys_regs_1->GBLSTAT = FBSLIP | RFSLIP;
 
@@ -90,14 +90,14 @@ static uint32_t _errata_SSWF021_45_both_plls(uint32_t count)
 	uint32_t fail_code = 0;
 	uint32_t retries;
 	uint32_t clock_control_save;
-	struct hercules_syscon_1_regs *sys_regs_1 = DT_REG_ADDR(SYS1_NODE);
-	struct hercules_syscon_2_regs *sys_regs_2 = DT_REG_ADDR(SYS2_NODE);
-	struct hercules_esm_regs *esm_rsgs = DT_REG_ADDR(ESM_NODE);
-	clock_control_save = sys_regs_1->CLKCNTL1;
+	volatile struct hercules_syscon_1_regs *sys_regs_1 = (void *)DT_REG_ADDR(SYS1_NODE);
+	volatile struct hercules_syscon_2_regs *sys_regs_2 = (void *)DT_REG_ADDR(SYS2_NODE);
+	volatile struct hercules_esm_regs *esm_regs = (void *)DT_REG_ADDR(ESM_NODE);
+	clock_control_save = sys_regs_1->CLKCNTL;
 	/* First set VCLK2 = HCLK */
-	sys_regs_1->CLKCNTL1 = clock_control_save & (PENA | (0xf << 16));
+	sys_regs_1->CLKCNTL = clock_control_save & (PENA | (0xf << 16));
 	/* Now set VCLK = HCLK and enable peripherals */
-	sys_regs_1->CLKCNTL1 = PENA;
+	sys_regs_1->CLKCNTL = PENA;
 	for (retries = 0; retries < count; retries++) {
 		fail_code = _errata_disable_plls(BIT(PLL1) | BIT(PLL2));
 		if (fail_code != 0) {
@@ -122,8 +122,6 @@ static uint32_t _errata_SSWF021_45_both_plls(uint32_t count)
 			((esm_regs->SR4[0] & ESM_SRx_PLLxSLIP) == 0))) {
 			/* Wait */
 		}
-
-		
 	}
 	return fail_code;
 }
@@ -177,8 +175,8 @@ static int ti_hercules_gcm_clock_configure(const struct device *dev, clock_contr
 static int ti_hercules_gcm_clock_init(const struct device *dev)
 {
 	_errata_SSWF021_45_both_plls(5);
-	struct hercules_syscon_1_regs *sys_regs_1 = DT_REG_ADDR(SYS1_NODE);
-	struct hercules_syscon_2_regs *sys_regs_2 = DT_REG_ADDR(SYS2_NODE);
+	volatile struct hercules_syscon_1_regs *sys_regs_1 = (void *)DT_REG_ADDR(SYS1_NODE);
+	volatile struct hercules_syscon_2_regs *sys_regs_2 = (void *)DT_REG_ADDR(SYS2_NODE);
 
 	/* Configure PLL control registers and enable PLLs.
 	 * The PLL takes (127 + 1024 * NR) oscillator cycles to acquire lock.

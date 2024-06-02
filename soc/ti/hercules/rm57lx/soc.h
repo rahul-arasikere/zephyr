@@ -8,7 +8,7 @@
 
 #include <zephyr/types.h>
 
-volatile struct hercules_syscon_1_regs {
+struct hercules_syscon_1_regs {
 	/* 0xFFFFFF00U */
 	uint32_t SYSPC1;      /* 0x0000 */
 	uint32_t SYSPC2;      /* 0x0004 */
@@ -75,7 +75,7 @@ volatile struct hercules_syscon_1_regs {
 	uint32_t SSIF;        /* 0x00F8 */
 };
 
-volatile struct hercules_syscon_2_regs {
+struct hercules_syscon_2_regs {
 	/* 0xFFFFE100U */
 	uint32_t PLLCTL3;     /* 0x0000 */
 	uint32_t rsvd1;       /* 0x0004 */
@@ -100,7 +100,7 @@ volatile struct hercules_syscon_2_regs {
 	uint32_t DIEIDH_REG3; /* 0x00FC */
 };
 
-volatile struct hercules_pcr_regs {
+struct hercules_pcr_regs {
 	uint32_t PMPROTSET0;    /* 0x0000 */
 	uint32_t PMPROTSET1;    /* 0x0004 */
 	uint32_t rsvd1[2];      /* 0x0008 */
@@ -156,7 +156,7 @@ volatile struct hercules_pcr_regs {
 	uint32_t PPCSxMSTID[8]; /* 0x05C0 */
 };
 
-volatile struct hercules_esm_regs {
+struct hercules_esm_regs {
 	uint32_t EEPAPR1; /* 0x0000                 */
 	uint32_t DEPAPR1; /* 0x0004                 */
 	uint32_t IESR1;   /* 0x0008                 */
