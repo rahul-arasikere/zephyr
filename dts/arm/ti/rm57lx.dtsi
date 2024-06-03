@@ -7,6 +7,7 @@
 #include <mem.h>
 #include <freq.h>
 #include <arm/armv7-r.dtsi>
+#include <zephyr/dt-bindings/interrupt-controller/ti-vim.h>
 
 / {
 
@@ -207,6 +208,36 @@
                 reg = <0xfffffa38 0x20>;
                 compatible = "ti,hercules-gio";
             };
+        };
+
+        vim: interrupt-controller@fffffd00 {
+            #address-cells = <0>;
+            #interrupt-cells = <4>;
+            reg = <0xfffffd00 0x200>;
+            compatible = "ti,vim";
+            interrupt-controller;
+            status = "okay";
+        };
+
+        rti: rti@fffffc00 {
+            reg = <0xfffffc00 0xbc>;
+            interrupts = <0 2 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY
+            0 3 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY
+            0 4 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY
+            0 5 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY
+            0 6 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY
+            0 7 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY
+            0 8 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY>;
+            interrupt-names = "rti0",
+                              "rti1",
+                              "rti2",
+                              "rti3",
+                              "rti_overflow0",
+                              "rti_overflow1",
+                              "rti_timebase1";
+            compatible = "ti,hercules-rti-timer";
+            interrupt-parent = <&vim>;
+            status = "okay"; /* the system clock timer is mandatory */
         };
     };
 };

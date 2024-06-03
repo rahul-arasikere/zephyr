@@ -1,0 +1,11 @@
+# Copyrights 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+config TI_HERCULES_RTI_TIMER
+	bool "TI Hercules Real Time Interrupt Driver"
+	default y
+	depends on DT_HAS_TI_HERCULES_RTI_TIMER_ENABLED
+	select TICKLESS_CAPABLE
+	select TIMER_HAS_64BIT_CYCLE_COUNTER
+	help
+	  This module implements a kernel device driver for the TI Hercules series Real Time Interrupt module and provides the standard "system clock driver" interfaces.

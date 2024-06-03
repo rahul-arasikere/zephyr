@@ -9,11 +9,14 @@ description: |
 
 compatible: "ti,vim"
 
-include: base.yaml
+include: [interrupt-controller.yaml, base.yaml]
 
 properties:
   reg:
     required: true
+
+  "#interrupt-cells":
+    const: 4
 
 interrupt-cells:
   - type

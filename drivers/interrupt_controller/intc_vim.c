@@ -67,8 +67,8 @@ void z_vim_irq_priority_set(unsigned int irq, unsigned int prio, uint32_t flags)
 
 	if (irq > CONFIG_NUM_IRQS || prio > VIM_PRI_INT_MAX ||
 	    (flags != IRQ_TYPE_EDGE && flags != IRQ_TYPE_LEVEL)) {
-		LOG_ERR("%s: Invalid argument irq = %u prio = %u flags = %u\n",
-			__func__, irq, prio, flags);
+		LOG_ERR("%s: Invalid argument irq = %u prio = %u flags = %u\n", __func__, irq, prio,
+			flags);
 		return;
 	}
 
@@ -148,4 +148,43 @@ void z_vim_arm_enter_irq(int irq)
 	irq_bit_num = VIM_GET_IRQ_BIT_NUM(irq);
 
 	sys_write32(BIT(irq_bit_num), VIM_RAW(irq_group_num));
+}
+
+unsigned int z_soc_irq_get_active(void)
+{
+	return z_vim_irq_get_active();
+}
+
+void z_soc_irq_eoi(unsigned int irq)
+{
+	z_vim_irq_eoi(irq);
+}
+
+void z_soc_irq_init(void)
+{
+	z_vim_irq_init();
+}
+
+void z_soc_irq_priority_set(unsigned int irq, unsigned int prio, uint32_t flags)
+{
+	/* Configure interrupt type and priority */
+	z_vim_irq_priority_set(irq, prio, flags);
+}
+
+void z_soc_irq_enable(unsigned int irq)
+{
+	/* Enable interrupt */
+	z_vim_irq_enable(irq);
+}
+
+void z_soc_irq_disable(unsigned int irq)
+{
+	/* Disable interrupt */
+	z_vim_irq_disable(irq);
+}
+
+int z_soc_irq_is_enabled(unsigned int irq)
+{
+	/* Check if interrupt is enabled */
+	return z_vim_irq_is_enabled(irq);
 }
