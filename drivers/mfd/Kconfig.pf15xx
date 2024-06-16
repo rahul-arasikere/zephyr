@@ -1,0 +1,11 @@
+# Copyright (c) 2024 Rahul Arasikere
+# SPDX-License-Identifier: Apache-2.0
+
+config MFD_NXP_PF15XX
+	bool "NXP PF15XX PMIC multi-function device driver"
+	default y
+	depends on DT_HAS_NXP_PF15XX_ENABLED
+	select I2C
+	select GPIO
+	help
+	  Enable the NXP PF15XX PMIC multi-function device driver
