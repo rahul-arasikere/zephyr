@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT nxp_pf1550
+#define DT_DRV_COMPAT nxp_pf15xx
 
 #include <errno.h>
 
@@ -15,21 +15,19 @@
 
 LOG_MODULE_REGISTER(nxp_pf15xx, CONFIG_MFD_LOG_LEVEL);
 
-#define NXP_PF1550_DEV_ID_ADDR 0x0
+#define NXP_PF15XX_DEV_ID_ADDR 0x0
 #define NXP_PF1500_DEV_ID_VAL  0
 #define NXP_PF1550_DEV_ID_VAL  BIT(2)
 #define NXP_PF15XX_FAMILY_VAL  GENMASK(7, 3)
 
-struct mfd_pf1550_config {
+struct mfd_pf15xx_config {
 	struct i2c_dt_spec bus;
-	struct gpio_dt_spec int_pin;
-	struct gpio_dt_spec stdby_pin;
-	struct gpio_dt_spec wdi_pin;
+	struct gpio_dt_spec standby_pin;
 };
 
-static int mfd_pf1550_init(const struct device *dev)
+static int mfd_pf15xx_init(const struct device *dev)
 {
-	const struct mfd_pf1550_config *config = dev->config;
+	const struct mfd_pf15xx_config *config = dev->config;
 	uint8_t val;
 	int ret;
 
@@ -37,16 +35,15 @@ static int mfd_pf1550_init(const struct device *dev)
 		return -ENODEV;
 	}
 
-	ret = i2c_reg_read_byte_dt(&config->bus, NXP_PF1550_DEV_ID_ADDR, &val);
+	ret = i2c_reg_read_byte_dt(&config->bus, NXP_PF15XX_DEV_ID_ADDR, &val);
 	if (ret < 0) {
 		return ret;
 	}
 
-	if (val & NXP_PF15XX_FAMILY_VAL != 0) {
-		if (val & NXP_PF1500_DEV_ID_VAL != 0) {
+	if ((val & NXP_PF15XX_FAMILY_VAL) != 0) {
+		if ((val & NXP_PF1500_DEV_ID_VAL) != 0) {
 			LOG_INF("pf1500 chip found");
-		}
-		else if (val & NXP_PF1550_DEV_ID_VAL != 0) {
+		} else if ((val & NXP_PF1550_DEV_ID_VAL) != 0) {
 			LOG_INF("pf1550 chip found");
 		}
 	} else {
@@ -57,13 +54,13 @@ static int mfd_pf1550_init(const struct device *dev)
 	return 0;
 }
 
-#define MFD_NXP_PF1550_DEFINE(inst)                                                                \
-	static const struct mfd_pf1550_config mfd_pf1550_config##inst = {                          \
+#define MFD_NXP_PF15XX_DEFINE(inst)                                                                \
+	static const struct mfd_pf15xx_config mfd_pf15xx_config##inst = {                          \
 		.bus = I2C_DT_SPEC_INST_GET(inst),                                                 \
-		.stdby_pin = GPIO_DT_SPEC_GET_OR(inst, standby_pin, NULL),                         \
+		.standby_pin = GPIO_DT_SPEC_GET_OR(inst, standby_pin, {0}),                        \
 	};                                                                                         \
                                                                                                    \
-	DEVICE_DT_INST_DEFINE(inst, mfd_pf1550_init, NULL, NULL, &mfd_pf1550_config##inst,         \
+	DEVICE_DT_INST_DEFINE(inst, mfd_pf15xx_init, NULL, NULL, &mfd_pf15xx_config##inst,         \
 			      POST_KERNEL, CONFIG_MFD_INIT_PRIORITY, NULL);
 
-DT_INST_FOREACH_STATUS_OKAY(MFD_NXP_PF1550_DEFINE);
+DT_INST_FOREACH_STATUS_OKAY(MFD_NXP_PF15XX_DEFINE);
