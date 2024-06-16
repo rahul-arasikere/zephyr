@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
-  NXP PF1550 PMIC
+  NXP PF15XX PMIC
 
   The PMIC has 3 buck converters and  3 LDOs. All need to be defined as
   children nodes, strictly following the BUCK1..3, LDO1...3 node names.
@@ -12,7 +12,7 @@ description: |
     reg = <0x8>;
     ...
     regulators {
-      compatible = nxp,pf1550-regulator";
+      compatible = nxp,pf15xx-regulator";
 
       BUCK1 {
         /* all properties for BUCK1 */
@@ -35,7 +35,7 @@ description: |
     };
   };
 
-compatible: "nxp,pf1550-regulator"
+compatible: "nxp,pf15xx-regulator"
 
 include: base.yaml
 

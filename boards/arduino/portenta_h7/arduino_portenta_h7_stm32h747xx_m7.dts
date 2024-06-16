@@ -91,11 +91,11 @@
 	status = "okay";
 	nxp_pf1550_pmic: pmic@8 {
 		reg = <0x08>;
-		compatible = "nxp,pf1550";
-		standby-pin = <&gpioj 0 GPIO_ACTIVE_HIGH>;
+		compatible = "nxp,pf15xx";
+		standby-gpios = <&gpioj 0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 		regulators {
-			compatible = "nxp,pf1550-regulator";
+			compatible = "nxp,pf15xx-regulator";
 			BUCK1 {
 				regulator-init-microvolt = <310000000>;
 				regulator-boot-on;

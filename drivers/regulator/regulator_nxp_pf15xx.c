@@ -38,7 +38,7 @@ static int regulator_pf15xx_set_dvs_state(const struct device *dev, regulator_dv
     return 0;
 }
 
-static const regulator_parent_driver_api parent_api = {
+static const struct regulator_parent_driver_api parent_api = {
     .dvs_state_set = regulator_pf15xx_set_dvs_state,
     .ship_mode = regulator_pf15xx_power_off,
 };
@@ -59,7 +59,7 @@ static int regulator_pf15xx_count_voltages(const struct device *dev) {
     return 0;
 }
 
-static int regulator_pf15xx_list_voltages(const struct device *dev, unsigned int idx, int32_t * volt_uv) {
+static int regulator_pf15xx_list_voltage(const struct device *dev, unsigned int idx, int32_t * volt_uv) {
     return 0;
 }
 
@@ -75,7 +75,7 @@ static unsigned int regulator_pf15xx_count_current_limits(const struct device *d
     return 0;
 }
 
-static int regulator_pf15xx_list_current_limits(const struct device *dev, unsigned int idx, int32_t *current_ua) {
+static int regulator_pf15xx_list_current_limit(const struct device *dev, unsigned int idx, int32_t *current_ua) {
     return 0;
 }
 
@@ -83,7 +83,7 @@ static int regulator_pf15xx_set_current_limit(const struct device *dev, int32_t 
     return 0;
 }
 
-static const regulator_driver_api api = {
+static const struct regulator_driver_api api = {
     .enable = regulator_pf15xx_enable,
     .disable = regulator_pf15xx_disable,
     .set_mode = regulator_pf15xx_set_mode,
@@ -92,6 +92,6 @@ static const regulator_driver_api api = {
     .set_voltage = regulator_pf15xx_set_voltage,
     .get_voltage = regulator_pf15xx_get_voltage,
     .count_current_limits = regulator_pf15xx_count_current_limits,
-    .list_current_limit = regulator_pf15xx_list_current_limit,
     .set_current_limit = regulator_pf15xx_set_current_limit,
+    .list_current_limit = regulator_pf15xx_list_current_limit,
 };

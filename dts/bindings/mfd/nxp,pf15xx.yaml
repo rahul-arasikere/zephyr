@@ -1,9 +1,9 @@
 # Copyright (c) 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
 # SPDX-License-Identifier: Apache-2.0
 
-description: NXP PF1550
+description: NXP PF15XX
 
-compatible: "nxp,pf1550"
+compatible: "nxp,pf15xx"
 
 include: i2c-device.yaml
 
@@ -15,6 +15,6 @@ properties:
     description: Chip has watchdog input from the processor.
     type: boolean
 
-  standby-pin:
+  standby-gpios:
     description: STANDBY input.
-    type: phandle
+    type: phandle-array

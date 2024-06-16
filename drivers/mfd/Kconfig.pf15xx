@@ -6,6 +6,5 @@ config MFD_NXP_PF15XX
 	default y
 	depends on DT_HAS_NXP_PF15XX_ENABLED
 	select I2C
-	select GPIO
 	help
 	  Enable the NXP PF15XX PMIC multi-function device driver
