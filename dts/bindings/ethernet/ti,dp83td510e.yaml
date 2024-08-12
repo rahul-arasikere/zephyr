@@ -1,0 +1,21 @@
+# Copyrights 2024 Rahul Arasikere <arasikere.rahul@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+description: TI DP83TD510E Ethernet PHY
+
+compatible: "ti,dp83td510e"
+
+include: [ethernet-phy.yaml]
+
+properties:
+  low-power-mode:
+    type: boolean
+    description: |
+      Enable the RMII Master Low Power Mode. The interface is similar to the
+      RMII master mode but runs at 5 MHz resulting in power dissipation savings.
+  reset-gpios:
+    type: phandle-array
+    description: GPIO connected to PHY reset signal pin. Reset is active low.
+  int-gpios:
+    type: phandle-array
+    description: GPIO for interrupt signal indicating PHY state change.

@@ -67,6 +67,16 @@ config PHY_QUALCOMM_AR8031
 	help
 	  Enable Qualcomm Atheros AR8031 Ethernet PHY Driver
 
+config PHY_TI_DP83TD510E
+	bool "TI DP83TD510E Ethernet PHY Driver"
+	default y
+	depends on DT_HAS_TI_DP83TD510E_ENABLED
+	depends on MDIO
+	depends on GPIO || (!$(dt_compat_any_has_prop,$(DT_COMPAT_TI_DP83TD510E),reset-gpios) && \
+			    !$(dt_compat_any_has_prop,$(DT_COMPAT_TI_DP83TD510E),int-gpios))
+	help
+		Enable TI DP83TD510E Ethernet PHY Driver
+
 config PHY_AUTONEG_TIMEOUT_MS
 	int "Auto-negotiation timeout value in milliseconds"
 	default 4000
