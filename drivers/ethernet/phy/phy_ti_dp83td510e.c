@@ -8,27 +8,32 @@
 #include <zephyr/kernel.h>
 #include <zephyr/net/phy.h>
 #include <zephyr/net/mii.h>
+#include <zephyr/net/mdio.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/mdio.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(phy_ti_dp83td510e, CONFIG_PHY_LOG_LEVEL);
+LOG_MODULE_REGISTER(dp83td510e, CONFIG_PHY_LOG_LEVEL);
+
+#define IS_FIXED_LINK(n) DT_INST_NODE_HAS_PROP(n, fixed_link)
+#define USE_INTERRUPT(n) DT_INST_NODE_HAS_PROP(n, use_pwdn_as_interrupt)
+#define MII_INVALID_PHY_ID UINT32_MAX
 
 struct ti_dp83td510e_config {
 	uint8_t addr;
 	bool no_reset;
 	bool fixed;
+	bool use_interrupt;
 	int fixed_speed;
 	const struct device *mdio;
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios)
 	const struct gpio_dt_spec reset_gpio;
 #endif
-#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(pwdn_gpios)
-	const struct gpio_dt_spec pwdn_gpio;
-#endif
-#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_gpios)
-	const struct gpio_dt_spec interrupt_gpio;
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_pwdn_gpios)
+	const struct gpio_dt_spec int_pwdn_gpio;
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(use_pwdn_as_interrupt)
 	struct gpio_callback interrupt_gpio_cb;
+#endif
 #endif
 };
 
@@ -37,11 +42,11 @@ struct ti_dp83td510e_data {
 	struct phy_link_state state;
 	phy_callback_t cb;
 	void *cb_data;
-	struct k_mutex mutex;
+	struct k_sem sem;
 	struct k_work_delayable phy_monitor_work;
 };
 
-static int phy_dp83td510e_reg_read(const struct device *dev, uint16_t reg_addr, uint16_t *reg_value)
+static int reg_read(const struct device *dev, uint16_t reg_addr, uint32_t *reg_value)
 {
 	int ret = 0;
 	const struct ti_dp83td510e_config *cfg = dev->config;
@@ -85,8 +90,9 @@ static int phy_dp83td510e_reg_read(const struct device *dev, uint16_t reg_addr, 
 	return ret;
 }
 
-static int phy_dp83td510e_reg_write(const struct device *dev, uint16_t reg_addr, uint16_t reg_value)
+static int reg_write(const struct device *dev, uint16_t reg_addr, uint32_t reg_value)
 {
+	int ret = 0;
 	const struct ti_dp83td510e_config *cfg = dev->config;
 	mdio_bus_enable(cfg->mdio);
 	if (reg_addr < 0x20) {
@@ -125,27 +131,27 @@ static int phy_dp83td510e_reg_write(const struct device *dev, uint16_t reg_addr,
 		ret = -EINVAL;
 	}
 	mdio_bus_disable(cfg->mdio);
-	return 0;
+	return ret;
 }
 
 static int phy_dp83td510e_cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
 {
 	const struct ti_dp83td510e_config *cfg = dev->config;
-	const struct ti_dp83td510e_config *data = dev->data;
+	const struct ti_dp83td510e_data *data = dev->data;
 	return 0;
 }
 
 static int phy_dp83td510e_get_link(const struct device *dev, struct phy_link_state *state)
 {
 	const struct ti_dp83td510e_config *cfg = dev->config;
-	const struct ti_dp83td510e_config *data = dev->data;
+	const struct ti_dp83td510e_data *data = dev->data;
 	return 0;
 }
 
 static int phy_dp83td510e_link_cb_set(const struct device *dev, phy_callback_t cb, void *user_data)
 {
 	struct phy_link_state state;
-	struct ti_dp83td510e_config *data = dev->data;
+	struct ti_dp83td510e_data *data = dev->data;
 	data->cb = cb;
 	data->cb_data = user_data;
 
@@ -178,7 +184,7 @@ static int phy_ti_dp83td510e_reset(const struct device *dev)
 	}
 
 	/* Start reset */
-	ret = gpio_pin_set_dt(&config->reset_gpio, 0);
+	ret = gpio_pin_set_dt(&config->reset_gpio, 1);
 	if (ret) {
 		goto done;
 	}
@@ -187,11 +193,11 @@ static int phy_ti_dp83td510e_reset(const struct device *dev)
 	k_busy_wait(500 * USEC_PER_MSEC);
 
 	/* Reset over */
-	ret = gpio_pin_set_dt(&config->reset_gpio, 1);
+	ret = gpio_pin_set_dt(&config->reset_gpio, 0);
 	goto done;
 skip_reset_gpio:
 #endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios) */
-	ret = phy_dp83td510e_reg_write(dev, MII_BMCR, MII_BMCR_RESET);
+	ret = reg_write(dev, MII_BMCR, MII_BMCR_RESET);
 	if (ret) {
 		goto done;
 	} /* Wait for phy configuration*/
@@ -224,17 +230,37 @@ static void phy_ti_dp83td510e_mon_work_handler(struct k_work *work)
 	k_work_reschedule(&data->phy_monitor_work, K_MSEC(CONFIG_PHY_MONITOR_PERIOD));
 }
 
-static void phy_ti_dp83td510e_interrupt(const struct device *port, struct gpio_callback *cb,
-					gpio_port_pins_t pins)
+// static void phy_ti_dp83td510e_interrupt(const struct device *port, struct gpio_callback *cb,
+// 					gpio_port_pins_t pins)
+// {
+// 	ARG_UNUSED(pins);
+// }
+
+static int get_id(const struct device *dev, uint32_t *phy_id)
 {
-	ARG_UNUSED(pins);
+	uint16_t value;
+
+	if (reg_read(dev, MII_PHYID1R, &value) < 0) {
+		return -EIO;
+	}
+
+	*phy_id = value << 16;
+
+	if (reg_read(dev, MII_PHYID2R, &value) < 0) {
+		return -EIO;
+	}
+
+	*phy_id |= value;
+
+	return 0;
 }
 
 static int phy_ti_dp83td510e_init(const struct device *dev)
 {
 	const struct ti_dp83td510e_config *cfg = dev->config;
-	struct ti_dp83td510e_config *data = dev->data;
+	struct ti_dp83td510e_data *data = dev->data;
 	int ret;
+	uint32_t phy_id;
 	k_sem_init(&data->sem, 1, 1);
 	data->dev = dev;
 	data->cb = NULL;
@@ -245,39 +271,21 @@ static int phy_ti_dp83td510e_init(const struct device *dev)
 	 */
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios)
 	if (cfg->reset_gpio.port) {
-		ret = gpio_pin_configure_dt(&cfg->reset_gpio, GPIO_OUTPUT_ACTIVE);
+		ret = gpio_pin_configure_dt(&cfg->reset_gpio, GPIO_OUTPUT_INACTIVE);
 		if (ret) {
 			return ret;
 		}
 	}
 #endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios) */
 
-#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(pwdn_gpios)
-	if (cfg->pwdn_gpio.port) {
-		ret = gpio_pin_configure_dt(&cfg->pwdn_gpio, GPIO_OUTPUT_ACTIVE);
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_pwdn_gpios)
+	if (cfg->int_pwdn_gpio.port) {
+		ret = gpio_pin_configure_dt(&cfg->int_pwdn_gpio, GPIO_OUTPUT_INACTIVE);
 		if (ret) {
 			return ret;
 		}
 	}
-#endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(pwdn_gpios) */
-
-#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_gpios)
-	if (cfg->interrupt_gpio.port) {
-		ret = gpio_pin_configure_dt(&cfg->interrupt_gpio, GPIO_INPUT);
-		if (ret) {
-			return ret;
-		}
-		ret = gpio_pin_interrupt_configure_dt(&cfg->interrupt_gpio,
-						      GPIO_INT_EDGE_TO_ACTIVE);
-		if (ret) {
-			LOG_ERR("PHY (%d) failed to set %s port pin %d as interrupt", cfg->addr,
-				interrupt_gpio.port.name, interrupt_gpio.pin);
-			return ret;
-		}
-		gpio_init_callback(&cfg->interrupt_gpio_cb, phy_ti_dp83td510e_interrupt,
-				   BIT(cfg->interrupt_gpio.pin));
-	}
-#endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_gpios) */
+#endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_pwdn_gpios) */
 	if (cfg->fixed) {
 		/* Only one speed */
 		data->state.speed = LINK_HALF_10BASE_T;
@@ -286,16 +294,25 @@ static int phy_ti_dp83td510e_init(const struct device *dev)
 		data->state.is_up = false;
 		/* Reset the PHY */
 		if (!cfg->no_reset) {
-			ret = phy_ti_dp83td510e_reset();
+			ret = phy_ti_dp83td510e_reset(dev);
 			if (ret) {
 				LOG_DBG("Failed to reset the PHY");
 				return ret;
 			}
 		}
 
-		ret = read_phy_id();
+		if (get_id(dev, &phy_id) == 0) {
+			if (phy_id == MII_INVALID_PHY_ID) {
+				LOG_ERR("No PHY found at address %d",
+					cfg->addr);
 
-		ret = do_auto_negotiation();
+				return -EINVAL;
+			}
+
+			LOG_INF("PHY (%d) ID %X\n", cfg->addr, phy_id);
+		}
+
+		// ret = do_auto_negotiation();
 
 		if (ret) {
 			LOG_ERR("Failed to auto negotiate PHY (%d) ID: %d", cfg->addr, ret);
@@ -311,9 +328,21 @@ static const struct ethphy_driver_api phy_ti_dp83td510e_api = {
 	.get_link = phy_dp83td510e_get_link,
 	.cfg_link = phy_dp83td510e_cfg_link,
 	.link_cb_set = phy_dp83td510e_link_cb_set,
-	.read = phy_dp83td510e_reg_read,
-	.write = phy_dp83td510e_reg_write,
+	.read = reg_read,
+	.write = reg_write,
 };
+
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios)
+#define RESET_GPIO(n) .reset_gpio = GPIO_DT_SPEC_INST_GET_OR(n, reset_gpios, {0})
+#else
+#define RESET_GPIO(n)
+#endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios) */
+
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_pwdn_gpios)
+#define PWDN_INT_GPIO(n) .int_pwdn_gpio = GPIO_DT_SPEC_INST_GET_OR(n, int_pwdn_gpios, {0})
+#else
+#define PWDN_INT_GPIO(n)
+#endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_pwdn_gpios) */
 
 #define TI_DP83TD510E_INIT(n)                                                                      \
 	static struct ti_dp83td510e_config ti_dp83td510e_config_##n = {                            \
@@ -321,7 +350,10 @@ static const struct ethphy_driver_api phy_ti_dp83td510e_api = {
 		.no_reset = DT_INST_PROP(n, no_reset),                                             \
 		.fixed = IS_FIXED_LINK(n),                                                         \
 		.fixed_speed = DT_INST_ENUM_IDX_OR(n, fixed_link, 0),                              \
-		.mdio = UTIL_AND(UTIL_NOT(IS_FIXED_LINK(n)), DEVICE_DT_GET(DT_INST_BUS(n)))};      \
+		.use_interrupt = USE_INTERRUPT(n),                                                 \
+		.mdio = UTIL_AND(UTIL_NOT(IS_FIXED_LINK(n)), DEVICE_DT_GET(DT_INST_BUS(n))),       \
+		RESET_GPIO(n),                                                                     \
+		PWDN_INT_GPIO(n)};                                                                 \
 	static struct ti_dp83td510e_data ti_dp83td510e_data_##n = {};                              \
 	DEVICE_DT_INST_DEFINE(n, &phy_ti_dp83td510e_init, NULL, &ti_dp83td510e_data_##n,           \
 			      &ti_dp83td510e_config_##n, POST_KERNEL, CONFIG_PHY_INIT_PRIORITY,    \

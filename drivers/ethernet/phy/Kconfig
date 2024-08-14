@@ -73,7 +73,6 @@ config PHY_TI_DP83TD510E
 	depends on DT_HAS_TI_DP83TD510E_ENABLED
 	depends on MDIO
 	depends on GPIO || (!$(dt_compat_any_has_prop,$(DT_COMPAT_TI_DP83TD510E),reset-gpios) && \
-			    !$(dt_compat_any_has_prop,$(DT_COMPAT_TI_DP83TD510E),int-gpios) & \
 			    !$(dt_compat_any_has_prop,$(DT_COMPAT_TI_DP83TD510E),pwdn-gpios))
 	help
 		Enable TI DP83TD510E Ethernet PHY Driver
