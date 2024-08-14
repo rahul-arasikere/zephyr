@@ -160,7 +160,9 @@ static int phy_dp83td510e_get_link(const struct device *dev, struct phy_link_sta
 	struct ti_dp83td510e_data *data = dev->data;
 	bool link_up;
 	uint16_t phy_sts = 0;
-	uint16_t an_reg = 0;
+	uint16_t an_ctrl = 0;
+	uint16_t an_stat = 0;
+	uint32_t timeout = CONFIG_PHY_AUTONEG_TIMEOUT_MS / 100;
 
 	if (reg_read(dev, PHY_STS, &phy_sts) < 0) {
 		return -EIO;
@@ -173,29 +175,59 @@ static int phy_dp83td510e_get_link(const struct device *dev, struct phy_link_sta
 	k_sem_take(&data->sem, K_FOREVER);
 	data->state.is_up = link_up;
 	k_sem_give(&data->sem);
-	/* Call callback if set. */
-	if (data->cb) {
-		data->cb(data->dev, &data->state, data->cb_data);
-	}
 
 	/* If link is down, there is nothing more to be done */
 	if (data->state.is_up == false) {
 		return 0;
 	}
 
+	/* Call callback if set. */
+	if (data->cb) {
+		data->cb(data->dev, &data->state, data->cb_data);
+	}
+
 	/* Restart the Auto-Negotiation Process. */
-
-	if (reg_read(dev, MDIO_AN_T1_CTRL, &an_reg) < 0) {
+	if (reg_read(dev, MDIO_AN_T1_CTRL, &an_ctrl) < 0) {
 		return -EIO;
 	}
 
-	an_reg |= MDIO_AN_T1_CTRL_RESTART;
+	an_ctrl |= MDIO_AN_T1_CTRL_RESTART;
 
-	if (reg_write(dev, MDIO_AN_T1_CTRL, an_reg) < 0) {
+	if (reg_write(dev, MDIO_AN_T1_CTRL, an_ctrl) < 0) {
 		return -EIO;
 	}
+	LOG_DBG("PHY (%d) Starting MII PHY auto-negotiate sequence", cfg->addr);
 
-	return 0;
+	do {
+		if (timeout-- == 0U) {
+			LOG_DBG("PHY (%d) auto-negotiate timedout", cfg->addr);
+			return -ETIMEDOUT;
+		}
+
+		k_sleep(K_MSEC(100));
+
+		if (reg_read(dev, MDIO_AN_T1_STAT, &an_stat) < 0) {
+			return -EIO;
+		}
+	} while (!(an_stat & MDIO_AN_T1_STAT_COMPLETE));
+
+	if (an_stat & MDIO_AN_T1_STAT_LINK_STATUS) {
+		data->state.speed = LINK_FULL_10BASE_T;
+		LOG_DBG("PHY (%d) auto-negotiate sequence completed", cfg->addr);
+		return 0;
+	}
+
+	LOG_ERR("PHY (%d) failed to establish link.", cfg->addr);
+	if (an_stat & MDIO_AN_T1_STAT_REMOTE_FAULT) {
+		LOG_ERR("Remote fault occured during auto-negotiation");
+	}
+	if (!(an_stat & MDIO_AN_T1_STAT_PAGE_RX)) {
+		LOG_ERR("Did not recieve remote page during auto-negotiation");
+	}
+	if (!(an_stat & MDIO_AN_T1_STAT_ABLE)) {
+		LOG_ERR("PHY (%d) is not capable of auto-negotiation", cfg->addr);
+	}
+	return -EIO;
 }
 
 static int phy_dp83td510e_link_cb_set(const struct device *dev, phy_callback_t cb, void *user_data)
