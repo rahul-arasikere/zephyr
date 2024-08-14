@@ -22,3 +22,9 @@ properties:
   int-pwdn-gpios:
     type: phandle-array
     description: GPIO to put the PHY in power down mode / interrupt pin.
+  max-tx-rx-p2p-microvolt:
+    description: Configures the Tx/Rx p2p differential output voltage for 10base-T1L PHYs.
+    enum:
+      - 1100
+      - 2400
+    default: 2400

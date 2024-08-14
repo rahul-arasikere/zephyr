@@ -15,9 +15,18 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(dp83td510e, CONFIG_PHY_LOG_LEVEL);
 
-#define IS_FIXED_LINK(n) DT_INST_NODE_HAS_PROP(n, fixed_link)
-#define USE_INTERRUPT(n) DT_INST_NODE_HAS_PROP(n, use_pwdn_as_interrupt)
+#define IS_FIXED_LINK(n)   DT_INST_NODE_HAS_PROP(n, fixed_link)
+#define USE_INTERRUPT(n)   DT_INST_NODE_HAS_PROP(n, use_pwdn_as_interrupt)
 #define MII_INVALID_PHY_ID UINT32_MAX
+
+#define PHY_STS               0x0010U
+#define PHY_STS_LINK_UP       BIT(0)
+#define PHY_STS_MII_INTERRUPT BIT(7)
+#define GEN_CFG               0x0011U
+#define INT_REG1              0x0012U
+#define INT_REG2              0x0013U
+#define MAC_CFG_1             0x0017U
+#define CTRL_REG              0x001FU
 
 struct ti_dp83td510e_config {
 	uint8_t addr;
@@ -136,15 +145,56 @@ static int reg_write(const struct device *dev, uint16_t reg_addr, uint32_t reg_v
 
 static int phy_dp83td510e_cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
 {
+	int ret = 0;
 	const struct ti_dp83td510e_config *cfg = dev->config;
-	const struct ti_dp83td510e_data *data = dev->data;
-	return 0;
+	struct ti_dp83td510e_data *data = dev->data;
+	uint32_t timeout = CONFIG_PHY_AUTONEG_TIMEOUT_MS / 100;
+	uint16_t sts_reg;
+	uint16_t bcmr_reg;
+	return ret;
 }
 
 static int phy_dp83td510e_get_link(const struct device *dev, struct phy_link_state *state)
 {
 	const struct ti_dp83td510e_config *cfg = dev->config;
-	const struct ti_dp83td510e_data *data = dev->data;
+	struct ti_dp83td510e_data *data = dev->data;
+	bool link_up;
+	uint16_t phy_sts = 0;
+	uint16_t an_reg = 0;
+
+	if (reg_read(dev, PHY_STS, &phy_sts) < 0) {
+		return -EIO;
+	}
+	link_up = phy_sts & PHY_STS_LINK_UP;
+
+	if (link_up == data->state.is_up) {
+		return -EAGAIN;
+	}
+	k_sem_take(&data->sem, K_FOREVER);
+	data->state.is_up = link_up;
+	k_sem_give(&data->sem);
+	/* Call callback if set. */
+	if (data->cb) {
+		data->cb(data->dev, &data->state, data->cb_data);
+	}
+
+	/* If link is down, there is nothing more to be done */
+	if (data->state.is_up == false) {
+		return 0;
+	}
+
+	/* Restart the Auto-Negotiation Process. */
+
+	if (reg_read(dev, MDIO_AN_T1_CTRL, &an_reg) < 0) {
+		return -EIO;
+	}
+
+	an_reg |= MDIO_AN_T1_CTRL_RESTART;
+
+	if (reg_write(dev, MDIO_AN_T1_CTRL, an_reg) < 0) {
+		return -EIO;
+	}
+
 	return 0;
 }
 
@@ -203,6 +253,8 @@ skip_reset_gpio:
 	} /* Wait for phy configuration*/
 	k_busy_wait(500 * USEC_PER_MSEC);
 done:
+	/* 1050 ns from reset release to strap latching. */
+	k_busy_wait(5 * USEC_PER_MSEC);
 	k_sem_give(&data->sem);
 	return ret;
 }
@@ -287,8 +339,12 @@ static int phy_ti_dp83td510e_init(const struct device *dev)
 	}
 #endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_pwdn_gpios) */
 	if (cfg->fixed) {
+		const static int speed_to_phy_link_speed[] = {
+			LINK_HALF_10BASE_T,  LINK_FULL_10BASE_T,   LINK_HALF_100BASE_T,
+			LINK_FULL_100BASE_T, LINK_HALF_1000BASE_T, LINK_FULL_1000BASE_T,
+		};
 		/* Only one speed */
-		data->state.speed = LINK_HALF_10BASE_T;
+		data->state.speed = speed_to_phy_link_speed[cfg->fixed_speed];
 		data->state.is_up = true;
 	} else {
 		data->state.is_up = false;
@@ -303,16 +359,15 @@ static int phy_ti_dp83td510e_init(const struct device *dev)
 
 		if (get_id(dev, &phy_id) == 0) {
 			if (phy_id == MII_INVALID_PHY_ID) {
-				LOG_ERR("No PHY found at address %d",
-					cfg->addr);
+				LOG_ERR("No PHY found at address %d", cfg->addr);
 
 				return -EINVAL;
 			}
 
-			LOG_INF("PHY (%d) ID %X\n", cfg->addr, phy_id);
+			LOG_INF("PHY (%d) ID %X", cfg->addr, phy_id);
 		}
 
-		// ret = do_auto_negotiation();
+		phy_dp83td510e_cfg_link(dev, LINK_HALF_10BASE_T | LINK_FULL_10BASE_T);
 
 		if (ret) {
 			LOG_ERR("Failed to auto negotiate PHY (%d) ID: %d", cfg->addr, ret);
@@ -320,6 +375,8 @@ static int phy_ti_dp83td510e_init(const struct device *dev)
 		}
 
 		k_work_init_delayable(&data->phy_monitor_work, phy_ti_dp83td510e_mon_work_handler);
+
+		phy_ti_dp83td510e_mon_work_handler(&data->phy_monitor_work.work);
 	}
 	return 0;
 }
