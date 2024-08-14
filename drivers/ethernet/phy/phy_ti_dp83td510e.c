@@ -28,6 +28,7 @@ struct ti_dp83td510e_config {
 #endif
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_gpios)
 	const struct gpio_dt_spec interrupt_gpio;
+	struct gpio_callback interrupt_gpio_cb;
 #endif
 };
 
@@ -40,30 +41,43 @@ struct ti_dp83td510e_data {
 	struct k_work_delayable phy_monitor_work;
 };
 
-static int phy_dp83td510e_set_mmd(const struct device *dev, uint8_t mmd, uint8_t mode,
-				  uint16_t reg_addr)
-{
-	return 0;
-}
-
 static int phy_dp83td510e_reg_read(const struct device *dev, uint16_t reg_addr, uint16_t *reg_value)
 {
 	int ret = 0;
 	const struct ti_dp83td510e_config *cfg = dev->config;
-	const struct ti_dp83td510e_config *data = dev->data;
 	mdio_bus_enable(cfg->mdio);
 	if (reg_addr < 0x20) {
 		/* Direct access to the register */
 		ret = mdio_read(cfg->mdio, cfg->addr, reg_addr, reg_value);
 	} else if (reg_addr >= 0x1000 && reg_addr <= 0x18F8) {
 		/* Access through MDIO_MMD_PMAPMD */
-		ret = mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR, );
+		ret = mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR, MDIO_MMD_PMAPMD);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_addr);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR,
+				  MII_MMD_ACR_DATA_NO_POS_INC | MDIO_MMD_PMAPMD);
+		ret |= mdio_read(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_value);
+
 	} else if (reg_addr >= 0x3000 && reg_addr <= 0x38E7) {
 		/* Access through MDIO_MMD_PCS*/
+		ret = mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR, MDIO_MMD_PCS);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_addr);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR,
+				  MII_MMD_ACR_DATA_NO_POS_INC | MDIO_MMD_PCS);
+		ret = mdio_read(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_value);
 	} else if (reg_addr >= 0x200 && reg_addr <= 0x20F) {
 		/* Access through MDIO_MMD_AN */
+		ret = mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR, MDIO_MMD_AN);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_addr);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR,
+				  MII_MMD_ACR_DATA_NO_POS_INC | MDIO_MMD_AN);
+		ret |= mdio_read(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_value);
 	} else if ((reg_addr >= 0x20 && reg_addr <= 0x130) || (reg_addr >= 0x300 && 0xE01)) {
 		/* Access through MDIO_MMD_VENDOR_SPECIFIC2 */
+		ret = mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR, MDIO_MMD_VENDOR_SPECIFIC2);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_addr);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR,
+				  MII_MMD_ACR_DATA_NO_POS_INC | MDIO_MMD_VENDOR_SPECIFIC2);
+		ret |= mdio_read(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_value);
 	} else {
 		ret = -EINVAL;
 	}
@@ -74,8 +88,42 @@ static int phy_dp83td510e_reg_read(const struct device *dev, uint16_t reg_addr, 
 static int phy_dp83td510e_reg_write(const struct device *dev, uint16_t reg_addr, uint16_t reg_value)
 {
 	const struct ti_dp83td510e_config *cfg = dev->config;
-	const struct ti_dp83td510e_config *data = dev->data;
 	mdio_bus_enable(cfg->mdio);
+	if (reg_addr < 0x20) {
+		/* Direct access to the register */
+		ret = mdio_read(cfg->mdio, cfg->addr, reg_addr, reg_value);
+	} else if (reg_addr >= 0x1000 && reg_addr <= 0x18F8) {
+		/* Access through MDIO_MMD_PMAPMD */
+		ret = mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR, MDIO_MMD_PMAPMD);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_addr);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR,
+				  MII_MMD_ACR_DATA_NO_POS_INC | MDIO_MMD_PMAPMD);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_value);
+
+	} else if (reg_addr >= 0x3000 && reg_addr <= 0x38E7) {
+		/* Access through MDIO_MMD_PCS*/
+		ret = mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR, MDIO_MMD_PCS);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_addr);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR,
+				  MII_MMD_ACR_DATA_NO_POS_INC | MDIO_MMD_PCS);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_value);
+	} else if (reg_addr >= 0x200 && reg_addr <= 0x20F) {
+		/* Access through MDIO_MMD_AN */
+		ret = mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR, MDIO_MMD_AN);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_addr);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR,
+				  MII_MMD_ACR_DATA_NO_POS_INC | MDIO_MMD_AN);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_value);
+	} else if ((reg_addr >= 0x20 && reg_addr <= 0x130) || (reg_addr >= 0x300 && 0xE01)) {
+		/* Access through MDIO_MMD_VENDOR_SPECIFIC2 */
+		ret = mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR, MDIO_MMD_VENDOR_SPECIFIC2);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_addr);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR,
+				  MII_MMD_ACR_DATA_NO_POS_INC | MDIO_MMD_VENDOR_SPECIFIC2);
+		ret |= mdio_write(cfg->mdio, cfg->addr, MII_MMD_AADR, reg_value);
+	} else {
+		ret = -EINVAL;
+	}
 	mdio_bus_disable(cfg->mdio);
 	return 0;
 }
@@ -176,6 +224,12 @@ static void phy_ti_dp83td510e_mon_work_handler(struct k_work *work)
 	k_work_reschedule(&data->phy_monitor_work, K_MSEC(CONFIG_PHY_MONITOR_PERIOD));
 }
 
+static void phy_ti_dp83td510e_interrupt(const struct device *port, struct gpio_callback *cb,
+					gpio_port_pins_t pins)
+{
+	ARG_UNUSED(pins);
+}
+
 static int phy_ti_dp83td510e_init(const struct device *dev)
 {
 	const struct ti_dp83td510e_config *cfg = dev->config;
@@ -197,15 +251,33 @@ static int phy_ti_dp83td510e_init(const struct device *dev)
 		}
 	}
 #endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios) */
-#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios)
-	if (cfg->reset_gpio.port) {
-		ret = gpio_pin_configure_dt(&cfg->reset_gpio, GPIO_OUTPUT_ACTIVE);
+
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(pwdn_gpios)
+	if (cfg->pwdn_gpio.port) {
+		ret = gpio_pin_configure_dt(&cfg->pwdn_gpio, GPIO_OUTPUT_ACTIVE);
 		if (ret) {
 			return ret;
 		}
 	}
-#endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios) */
+#endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(pwdn_gpios) */
 
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_gpios)
+	if (cfg->interrupt_gpio.port) {
+		ret = gpio_pin_configure_dt(&cfg->interrupt_gpio, GPIO_INPUT);
+		if (ret) {
+			return ret;
+		}
+		ret = gpio_pin_interrupt_configure_dt(&cfg->interrupt_gpio,
+						      GPIO_INT_EDGE_TO_ACTIVE);
+		if (ret) {
+			LOG_ERR("PHY (%d) failed to set %s port pin %d as interrupt", cfg->addr,
+				interrupt_gpio.port.name, interrupt_gpio.pin);
+			return ret;
+		}
+		gpio_init_callback(&cfg->interrupt_gpio_cb, phy_ti_dp83td510e_interrupt,
+				   BIT(cfg->interrupt_gpio.pin));
+	}
+#endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_gpios) */
 	if (cfg->fixed) {
 		/* Only one speed */
 		data->state.speed = LINK_HALF_10BASE_T;
