@@ -55,7 +55,7 @@ struct ti_dp83td510e_data {
 	struct k_work_delayable phy_monitor_work;
 };
 
-static int reg_read(const struct device *dev, uint16_t reg_addr, uint32_t *reg_value)
+static int reg_read(const struct device *dev, uint16_t reg_addr, uint16_t *reg_value)
 {
 	int ret = 0;
 	const struct ti_dp83td510e_config *cfg = dev->config;
@@ -99,14 +99,19 @@ static int reg_read(const struct device *dev, uint16_t reg_addr, uint32_t *reg_v
 	return ret;
 }
 
-static int reg_write(const struct device *dev, uint16_t reg_addr, uint32_t reg_value)
+static int dp83td510e_read(const struct device *dev, uint16_t reg_addr, uint32_t *data)
+{
+	return reg_read(dev, reg_addr, (uint16_t *)data);
+}
+
+static int reg_write(const struct device *dev, uint16_t reg_addr, uint16_t reg_value)
 {
 	int ret = 0;
 	const struct ti_dp83td510e_config *cfg = dev->config;
 	mdio_bus_enable(cfg->mdio);
 	if (reg_addr < 0x20) {
 		/* Direct access to the register */
-		ret = mdio_read(cfg->mdio, cfg->addr, reg_addr, reg_value);
+		ret = mdio_write(cfg->mdio, cfg->addr, reg_addr, reg_value);
 	} else if (reg_addr >= 0x1000 && reg_addr <= 0x18F8) {
 		/* Access through MDIO_MMD_PMAPMD */
 		ret = mdio_write(cfg->mdio, cfg->addr, MII_MMD_ACR, MDIO_MMD_PMAPMD);
@@ -143,7 +148,12 @@ static int reg_write(const struct device *dev, uint16_t reg_addr, uint32_t reg_v
 	return ret;
 }
 
-static int phy_dp83td510e_cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
+static int dp83td510e_write(const struct device *dev, uint16_t reg_addr, uint32_t data)
+{
+	return reg_write(dev, reg_addr, (uint16_t)data);
+}
+
+static int cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
 {
 	int ret = 0;
 	const struct ti_dp83td510e_config *cfg = dev->config;
@@ -154,7 +164,7 @@ static int phy_dp83td510e_cfg_link(const struct device *dev, enum phy_link_speed
 	return ret;
 }
 
-static int phy_dp83td510e_get_link(const struct device *dev, struct phy_link_state *state)
+static int get_link_state(const struct device *dev, struct phy_link_state *state)
 {
 	const struct ti_dp83td510e_config *cfg = dev->config;
 	struct ti_dp83td510e_data *data = dev->data;
@@ -179,11 +189,6 @@ static int phy_dp83td510e_get_link(const struct device *dev, struct phy_link_sta
 	/* If link is down, there is nothing more to be done */
 	if (data->state.is_up == false) {
 		return 0;
-	}
-
-	/* Call callback if set. */
-	if (data->cb) {
-		data->cb(data->dev, &data->state, data->cb_data);
 	}
 
 	/* Restart the Auto-Negotiation Process. */
@@ -230,7 +235,7 @@ static int phy_dp83td510e_get_link(const struct device *dev, struct phy_link_sta
 	return -EIO;
 }
 
-static int phy_dp83td510e_link_cb_set(const struct device *dev, phy_callback_t cb, void *user_data)
+static int link_cb_set(const struct device *dev, phy_callback_t cb, void *user_data)
 {
 	struct phy_link_state state;
 	struct ti_dp83td510e_data *data = dev->data;
@@ -242,7 +247,7 @@ static int phy_dp83td510e_link_cb_set(const struct device *dev, phy_callback_t c
 	 * current link status.
 	 */
 
-	phy_dp83td510e_get_link(dev, &state);
+	get_link_state(dev, &state);
 	data->cb(data->dev, &state, data->cb_data);
 	return 0;
 }
@@ -291,7 +296,7 @@ done:
 	return ret;
 }
 
-static void phy_ti_dp83td510e_mon_work_handler(struct k_work *work)
+static void monitor_work_handler(struct k_work *work)
 {
 	struct k_work_delayable *dwork = k_work_delayable_from_work(work);
 	struct ti_dp83td510e_data *data =
@@ -300,9 +305,10 @@ static void phy_ti_dp83td510e_mon_work_handler(struct k_work *work)
 	struct phy_link_state state = {};
 	int ret;
 
-	ret = phy_dp83td510e_get_link(dev, &state);
+	ret = get_link_state(dev, &state);
 
 	if (ret == 0 && memcmp(&state, &data->state, sizeof(struct phy_link_state)) != 0) {
+		LOG_DBG("Updating link state");
 		k_sem_take(&data->sem, K_FOREVER);
 		memcpy(&data->state, &state, sizeof(struct phy_link_state));
 		k_sem_give(&data->sem);
@@ -399,26 +405,26 @@ static int phy_ti_dp83td510e_init(const struct device *dev)
 			LOG_INF("PHY (%d) ID %X", cfg->addr, phy_id);
 		}
 
-		phy_dp83td510e_cfg_link(dev, LINK_HALF_10BASE_T | LINK_FULL_10BASE_T);
+		cfg_link(dev, LINK_HALF_10BASE_T | LINK_FULL_10BASE_T);
 
 		if (ret) {
 			LOG_ERR("Failed to auto negotiate PHY (%d) ID: %d", cfg->addr, ret);
 			return ret;
 		}
 
-		k_work_init_delayable(&data->phy_monitor_work, phy_ti_dp83td510e_mon_work_handler);
+		k_work_init_delayable(&data->phy_monitor_work, monitor_work_handler);
 
-		phy_ti_dp83td510e_mon_work_handler(&data->phy_monitor_work.work);
+		monitor_work_handler(&data->phy_monitor_work.work);
 	}
 	return 0;
 }
 
 static const struct ethphy_driver_api phy_ti_dp83td510e_api = {
-	.get_link = phy_dp83td510e_get_link,
-	.cfg_link = phy_dp83td510e_cfg_link,
-	.link_cb_set = phy_dp83td510e_link_cb_set,
-	.read = reg_read,
-	.write = reg_write,
+	.get_link = get_link_state,
+	.cfg_link = cfg_link,
+	.link_cb_set = link_cb_set,
+	.read = dp83td510e_read,
+	.write = dp83td510e_write,
 };
 
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios)
