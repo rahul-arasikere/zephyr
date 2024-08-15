@@ -182,12 +182,11 @@ static int get_link_state(const struct device *dev, struct phy_link_state *state
 	if (link_up == data->state.is_up) {
 		return -EAGAIN;
 	}
-	k_sem_take(&data->sem, K_FOREVER);
-	data->state.is_up = link_up;
-	k_sem_give(&data->sem);
+	state->is_up = link_up;
 
 	/* If link is down, there is nothing more to be done */
-	if (data->state.is_up == false) {
+	if (state->is_up == false) {
+		LOG_INF("PHY (%d) Link state transition to down", cfg->addr);
 		return 0;
 	}
 
@@ -201,11 +200,11 @@ static int get_link_state(const struct device *dev, struct phy_link_state *state
 	if (reg_write(dev, MDIO_AN_T1_CTRL, an_ctrl) < 0) {
 		return -EIO;
 	}
-	LOG_DBG("PHY (%d) Starting MII PHY auto-negotiate sequence", cfg->addr);
+	LOG_DBG("PHY (%d) Starting APL PHY auto-negotiate sequence", cfg->addr);
 
 	do {
 		if (timeout-- == 0U) {
-			LOG_DBG("PHY (%d) auto-negotiate timedout", cfg->addr);
+			LOG_ERR("PHY (%d) auto-negotiate timed out", cfg->addr);
 			return -ETIMEDOUT;
 		}
 
@@ -215,19 +214,20 @@ static int get_link_state(const struct device *dev, struct phy_link_state *state
 			return -EIO;
 		}
 	} while (!(an_stat & MDIO_AN_T1_STAT_COMPLETE));
+	LOG_DBG("PHY (%d) Auto-negotiation complete", cfg->addr);
 
 	if (an_stat & MDIO_AN_T1_STAT_LINK_STATUS) {
-		data->state.speed = LINK_FULL_10BASE_T;
-		LOG_DBG("PHY (%d) auto-negotiate sequence completed", cfg->addr);
+		state->speed = LINK_FULL_10BASE_T;
+		LOG_INF("PHY (%d) link transition to up state", cfg->addr);
 		return 0;
 	}
 
-	LOG_ERR("PHY (%d) failed to establish link.", cfg->addr);
+	LOG_ERR("PHY (%d) failed to establish link", cfg->addr);
 	if (an_stat & MDIO_AN_T1_STAT_REMOTE_FAULT) {
-		LOG_ERR("Remote fault occured during auto-negotiation");
+		LOG_ERR("PHY (%d) Remote fault occured during auto-negotiation", cfg->addr);
 	}
 	if (!(an_stat & MDIO_AN_T1_STAT_PAGE_RX)) {
-		LOG_ERR("Did not recieve remote page during auto-negotiation");
+		LOG_ERR("PHY (%d) Did not recieve remote page during auto-negotiation", cfg->addr);
 	}
 	if (!(an_stat & MDIO_AN_T1_STAT_ABLE)) {
 		LOG_ERR("PHY (%d) is not capable of auto-negotiation", cfg->addr);
@@ -308,7 +308,6 @@ static void monitor_work_handler(struct k_work *work)
 	ret = get_link_state(dev, &state);
 
 	if (ret == 0 && memcmp(&state, &data->state, sizeof(struct phy_link_state)) != 0) {
-		LOG_DBG("Updating link state");
 		k_sem_take(&data->sem, K_FOREVER);
 		memcpy(&data->state, &state, sizeof(struct phy_link_state));
 		k_sem_give(&data->sem);
