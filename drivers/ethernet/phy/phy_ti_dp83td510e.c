@@ -25,7 +25,9 @@ LOG_MODULE_REGISTER(dp83td510e, CONFIG_PHY_LOG_LEVEL);
 #define GEN_CFG               0x0011U
 #define INT_REG1              0x0012U
 #define INT_REG2              0x0013U
+#define BISCR_REG             0x0016U
 #define MAC_CFG_1             0x0017U
+#define MAC_CFG_2             0x0018U
 #define CTRL_REG              0x001FU
 
 struct ti_dp83td510e_config {
@@ -158,9 +160,14 @@ static int cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
 	int ret = 0;
 	const struct ti_dp83td510e_config *cfg = dev->config;
 	struct ti_dp83td510e_data *data = dev->data;
-	uint32_t timeout = CONFIG_PHY_AUTONEG_TIMEOUT_MS / 100;
-	uint16_t sts_reg;
-	uint16_t bcmr_reg;
+	// uint16_t bcmr_reg = 0;
+	uint16_t mac_cfg_1_reg = 0;
+	// reg_read(dev, MII_BMCR, &bcmr_reg);
+	reg_read(dev, MAC_CFG_1, &mac_cfg_1_reg);
+	mac_cfg_1_reg |= BIT(6) | BIT(4);
+	// bcmr_reg |= MII_BMCR_LOOPBACK;
+	// reg_write(dev, MII_BMCR, bcmr_reg);
+	reg_write(dev, MAC_CFG_1, mac_cfg_1_reg);
 	return ret;
 }
 
@@ -252,7 +259,7 @@ static int link_cb_set(const struct device *dev, phy_callback_t cb, void *user_d
 	return 0;
 }
 
-static int phy_ti_dp83td510e_reset(const struct device *dev)
+static int reset_phy(const struct device *dev)
 {
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios)
 	const struct ti_dp83td510e_config *config = dev->config;
@@ -387,7 +394,7 @@ static int phy_ti_dp83td510e_init(const struct device *dev)
 		data->state.is_up = false;
 		/* Reset the PHY */
 		if (!cfg->no_reset) {
-			ret = phy_ti_dp83td510e_reset(dev);
+			ret = reset_phy(dev);
 			if (ret) {
 				LOG_DBG("Failed to reset the PHY");
 				return ret;
