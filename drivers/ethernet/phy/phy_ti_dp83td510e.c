@@ -34,6 +34,8 @@ LOG_MODULE_REGISTER(dp83td510e, CONFIG_PHY_LOG_LEVEL);
 #define MAC_CFG_2             0x0018U
 #define CTRL_REG              0x001FU
 
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(mac_connection_type)
+
 enum phy_mii_mode {
 	MII_MODE_MII,
 	MII_MODE_RMII_MASTER,
@@ -42,6 +44,8 @@ enum phy_mii_mode {
 	MII_MODE_RMII_MASTER_LOW_POWER,
 	MII_MODE_RMII_EXTENDER,
 };
+
+#endif
 
 struct ti_dp83td510e_config {
 	uint8_t addr;
@@ -182,7 +186,7 @@ static int cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
 	reg_read(dev, MAC_CFG_1, &mac_cfg_1_reg);
 
 	/**
-	 * Not sure which MAC peripherals support RMII rev 1.2, 
+	 * Not sure which MAC peripherals support RMII rev 1.2,
 	 * which is enabled by default.
 	 * For example the STM32 chip expects the behavior or RMII rev 1.
 	 */
@@ -192,6 +196,9 @@ static int cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
 		mac_cfg_1 ^= MAC_CFG_1_RMII_REV;
 	}
 
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(mac_connection_type)
+	switch (cfg->mac_mode) {
+	}
 	/**
 	 * The behaviour of the slow mode bit differs from the datasheet.
 	 * This bit needs to be set to operate in 50 Mhz mode.
@@ -203,6 +210,8 @@ static int cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
 	}
 	reg_write(dev, MAC_CFG_1, mac_cfg_1_reg);
 	return ret;
+
+#endif
 }
 
 static int get_link_state(const struct device *dev, struct phy_link_state *state)
@@ -467,6 +476,13 @@ static const struct ethphy_driver_api phy_ti_dp83td510e_api = {
 	.write = dp83td510e_write,
 };
 
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(mac_connection_type)
+#define MAC_MODE(n)                                                                                \
+	.mac_mode = _CONCAT(MII_MODE_, DT_INST_STRING_UPPER_TOKEN(n, mac_connection_type))
+#else
+#define MAC_MODE(n)
+#endif /* DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios) */
+
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios)
 #define RESET_GPIO(n) .reset_gpio = GPIO_DT_SPEC_INST_GET_OR(n, reset_gpios, {0})
 #else
@@ -487,8 +503,8 @@ static const struct ethphy_driver_api phy_ti_dp83td510e_api = {
 		.fixed_speed = DT_INST_ENUM_IDX_OR(n, fixed_link, 0),                              \
 		.use_interrupt = USE_INTERRUPT(n),                                                 \
 		.use_rmii_rev_1_2 = USE_RMII_REV_1_2(n),                                           \
-		.use_slow_mode = USE_SLOW_MODE(n),                                                 \
 		.mdio = UTIL_AND(UTIL_NOT(IS_FIXED_LINK(n)), DEVICE_DT_GET(DT_INST_BUS(n))),       \
+		UTIL_AND(UTIL_NOT(IS_FIXED_LINK(n)), MAC_MODE(n)),                                 \
 		RESET_GPIO(n),                                                                     \
 		PWDN_INT_GPIO(n)};                                                                 \
 	static struct ti_dp83td510e_data ti_dp83td510e_data_##n = {};                              \
