@@ -34,23 +34,36 @@ LOG_MODULE_REGISTER(dp83td510e, CONFIG_PHY_LOG_LEVEL);
 #define MAC_CFG_2             0x0018U
 #define CTRL_REG              0x001FU
 
+enum phy_mii_mode {
+	MII_MODE_MII,
+	MII_MODE_RMII_MASTER,
+	MII_MODE_RMII_SLAVE,
+	MII_MODE_RGMII,
+	MII_MODE_RMII_MASTER_LOW_POWER,
+	MII_MODE_RMII_EXTENDER,
+};
+
 struct ti_dp83td510e_config {
 	uint8_t addr;
 	bool no_reset;
 	bool fixed;
 	bool use_interrupt;
 	bool use_rmii_rev_1_2;
-	bool use_slow_mode;
 	int fixed_speed;
 	const struct device *mdio;
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios)
 	const struct gpio_dt_spec reset_gpio;
 #endif
+
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_pwdn_gpios)
 	const struct gpio_dt_spec int_pwdn_gpio;
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(use_pwdn_as_interrupt)
 	struct gpio_callback interrupt_gpio_cb;
 #endif
+#endif
+
+#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(mac_connection_type)
+	enum phy_mii_mode mac_mode;
 #endif
 };
 
