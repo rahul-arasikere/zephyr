@@ -15,9 +15,11 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(dp83td510e, CONFIG_PHY_LOG_LEVEL);
 
-#define IS_FIXED_LINK(n)   DT_INST_NODE_HAS_PROP(n, fixed_link)
-#define USE_INTERRUPT(n)   DT_INST_NODE_HAS_PROP(n, use_pwdn_as_interrupt)
-#define MII_INVALID_PHY_ID UINT32_MAX
+#define IS_FIXED_LINK(n)    DT_INST_NODE_HAS_PROP(n, fixed_link)
+#define USE_INTERRUPT(n)    DT_INST_NODE_HAS_PROP(n, use_pwdn_as_interrupt)
+#define USE_RMII_REV_1_2(n) DT_INST_NODE_HAS_PROP(n, use_rmii_rev_1_2)
+#define USE_SLOW_MODE(n)    DT_INST_NODE_HAS_PROP(n, use_slow_mode)
+#define MII_INVALID_PHY_ID  UINT32_MAX
 
 #define PHY_STS               0x0010U
 #define PHY_STS_LINK_UP       BIT(0)
@@ -27,6 +29,8 @@ LOG_MODULE_REGISTER(dp83td510e, CONFIG_PHY_LOG_LEVEL);
 #define INT_REG2              0x0013U
 #define BISCR_REG             0x0016U
 #define MAC_CFG_1             0x0017U
+#define MAC_CFG_1_SLOW_MODE   BIT(6)
+#define MAC_CFG_1_RMII_REV    BIT(4)
 #define MAC_CFG_2             0x0018U
 #define CTRL_REG              0x001FU
 
@@ -35,6 +39,8 @@ struct ti_dp83td510e_config {
 	bool no_reset;
 	bool fixed;
 	bool use_interrupt;
+	bool use_rmii_rev_1_2;
+	bool use_slow_mode;
 	int fixed_speed;
 	const struct device *mdio;
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(reset_gpios)
@@ -159,14 +165,29 @@ static int cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
 {
 	int ret = 0;
 	const struct ti_dp83td510e_config *cfg = dev->config;
-	struct ti_dp83td510e_data *data = dev->data;
-	// uint16_t bcmr_reg = 0;
 	uint16_t mac_cfg_1_reg = 0;
-	// reg_read(dev, MII_BMCR, &bcmr_reg);
 	reg_read(dev, MAC_CFG_1, &mac_cfg_1_reg);
-	mac_cfg_1_reg |= BIT(6) | BIT(4);
-	// bcmr_reg |= MII_BMCR_LOOPBACK;
-	// reg_write(dev, MII_BMCR, bcmr_reg);
+
+	/**
+	 * Not sure which MAC peripherals support RMII rev 1.2, 
+	 * which is enabled by default.
+	 * For example the STM32 chip expects the behavior or RMII rev 1.
+	 */
+	if (!cfg->use_rmii_rev_1_2) {
+		mac_cfg_1 |= MAC_CFG_1_RMII_REV;
+	} else {
+		mac_cfg_1 ^= MAC_CFG_1_RMII_REV;
+	}
+
+	/**
+	 * The behaviour of the slow mode bit differs from the datasheet.
+	 * This bit needs to be set to operate in 50 Mhz mode.
+	 */
+	if (!cfg->use_slow_mode) {
+		mac_cfg_1 |= MAC_CFG_1_SLOW_MODE;
+	} else {
+		mac_cfg_1 ^= MAC_CFG_1_SLOW_MODE;
+	}
 	reg_write(dev, MAC_CFG_1, mac_cfg_1_reg);
 	return ret;
 }
@@ -452,6 +473,8 @@ static const struct ethphy_driver_api phy_ti_dp83td510e_api = {
 		.fixed = IS_FIXED_LINK(n),                                                         \
 		.fixed_speed = DT_INST_ENUM_IDX_OR(n, fixed_link, 0),                              \
 		.use_interrupt = USE_INTERRUPT(n),                                                 \
+		.use_rmii_rev_1_2 = USE_RMII_REV_1_2(n),                                           \
+		.use_slow_mode = USE_SLOW_MODE(n),                                                 \
 		.mdio = UTIL_AND(UTIL_NOT(IS_FIXED_LINK(n)), DEVICE_DT_GET(DT_INST_BUS(n))),       \
 		RESET_GPIO(n),                                                                     \
 		PWDN_INT_GPIO(n)};                                                                 \

@@ -5,7 +5,11 @@ description: TI DP83TD510E Ethernet PHY
 
 compatible: "ti,dp83td510e"
 
-include: [ethernet-phy.yaml]
+include: 
+  - name: ethernet-phy.yaml
+  - name: ethernet-controller.yaml
+    property-allowlist:
+      - phy-connection-type
 
 properties:
   low-power-mode:
@@ -22,9 +26,16 @@ properties:
   int-pwdn-gpios:
     type: phandle-array
     description: GPIO to put the PHY in power down mode / interrupt pin.
-  # max-tx-rx-p2p-microvolt:
-  #   description: Configures the Tx/Rx p2p differential output voltage for 10base-T1L PHYs.
-  #   enum:
-  #     - 1100
-  #     - 2400
-  #   default: 2400
+  use-slow-mode:
+    type: boolean
+    description: Enable the 5 Mhz low power mode in RMII master operation.
+  use-rmii-rev-1-2:
+    type: boolean
+    description: Operate in RMII rev 1.2 mode over rev 1.1.
+  max-tx-rx-p2p-microvolt:
+    description: Configures the Tx/Rx p2p differential output voltage for 10base-T1L PHYs.
+    enum:
+      - 1100
+      - 2400
+      - auto
+    default: auto
