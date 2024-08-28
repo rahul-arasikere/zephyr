@@ -369,11 +369,12 @@ static void monitor_work_handler(struct k_work *work)
 	k_work_reschedule(&data->phy_monitor_work, K_MSEC(CONFIG_PHY_MONITOR_PERIOD));
 }
 
-// static void phy_ti_dp83td510e_interrupt(const struct device *port, struct gpio_callback *cb,
-// 					gpio_port_pins_t pins)
-// {
-// 	ARG_UNUSED(pins);
-// }
+static void phy_ti_dp83td510e_interrupt(const struct device *port, struct gpio_callback *cb,
+					gpio_port_pins_t pins)
+{
+	ARG_UNUSED(pins);
+	struct ti_dp83td510e_data *data = CONTAINER_OF(cb, struct ti_dp83td510e_data, interrupt_gpio_cb);
+}
 
 static int get_id(const struct device *dev, uint32_t *phy_id)
 {
