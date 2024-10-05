@@ -232,6 +232,7 @@ config HWINFO_TI_HERCULES
 	bool "TI Hercules hwinfo driver"
 	default y
 	depends on SOC_FAMILY_TI_HERCULES
+	select HWINFO_HAS_DRIVER
 	help
 	   Enable RM57Lx hwinfo driver
 	   
@@ -262,12 +263,5 @@ config HWINFO_NUMAKER_RMC
 	select HAS_NUMAKER_RMC
 	help
 	  Enable Nuvoton NuMaker hwinfo driver backed up by RMC
-
-config HWINFO_RM57LX
-	bool "TI Hercules RM57Lx hwinfo driver"
-	default y
-	depends on SOC_SERIES_RM57LX
-	help
-	   Enable RM57Lx hwinfo driver
 
 endif
