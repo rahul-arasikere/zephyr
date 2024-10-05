@@ -28,11 +28,12 @@ properties:
     description: Operate in RMII rev 1.2 mode over rev 1.1.
   max-tx-rx-p2p-microvolt:
     description: Configures the Tx/Rx p2p differential output voltage for 10base-T1L PHYs.
+    type: string
     enum:
-      - 1100
-      - 2400
-      - auto
-    default: auto
+      - "1100"
+      - "2400"
+      - "auto"
+    default: "auto"
   mac-connection-type:
     type: string
     description: |

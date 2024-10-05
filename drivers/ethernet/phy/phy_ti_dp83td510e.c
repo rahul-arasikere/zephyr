@@ -61,9 +61,6 @@ struct ti_dp83td510e_config {
 
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(int_pwdn_gpios)
 	const struct gpio_dt_spec int_pwdn_gpio;
-#if DT_ANY_INST_HAS_PROP_STATUS_OKAY(use_pwdn_as_interrupt)
-	struct gpio_callback interrupt_gpio_cb;
-#endif
 #endif
 
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(mac_connection_type)
@@ -78,6 +75,7 @@ struct ti_dp83td510e_data {
 	void *cb_data;
 	struct k_sem sem;
 	struct k_work_delayable phy_monitor_work;
+	struct gpio_callback interrupt_gpio_cb;
 };
 
 static int reg_read(const struct device *dev, uint16_t reg_addr, uint16_t *reg_value)
@@ -191,9 +189,9 @@ static int cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
 	 * For example the STM32 chip expects the behavior or RMII rev 1.
 	 */
 	if (!cfg->use_rmii_rev_1_2) {
-		mac_cfg_1 |= MAC_CFG_1_RMII_REV;
+		mac_cfg_1_reg |= MAC_CFG_1_RMII_REV;
 	} else {
-		mac_cfg_1 ^= MAC_CFG_1_RMII_REV;
+		mac_cfg_1_reg ^= MAC_CFG_1_RMII_REV;
 	}
 
 #if DT_ANY_INST_HAS_PROP_STATUS_OKAY(mac_connection_type)
@@ -204,9 +202,9 @@ static int cfg_link(const struct device *dev, enum phy_link_speed adv_speeds)
 	 * This bit needs to be set to operate in 50 Mhz mode.
 	 */
 	if (!cfg->use_slow_mode) {
-		mac_cfg_1 |= MAC_CFG_1_SLOW_MODE;
+		mac_cfg_1_reg |= MAC_CFG_1_SLOW_MODE;
 	} else {
-		mac_cfg_1 ^= MAC_CFG_1_SLOW_MODE;
+		mac_cfg_1_reg ^= MAC_CFG_1_SLOW_MODE;
 	}
 	reg_write(dev, MAC_CFG_1, mac_cfg_1_reg);
 	return ret;
