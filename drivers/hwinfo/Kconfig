@@ -206,5 +206,14 @@ config HWINFO_TI_HERCULES
 	depends on SOC_FAMILY_TI_HERCULES
 	help
 	   Enable RM57Lx hwinfo driver
+	   
+config HWINFO_AMBIQ
+	bool "AMBIQ hwinfo"
+	default y
+	depends on SOC_SERIES_APOLLO4X
+	select AMBIQ_HAL
+	select AMBIQ_HAL_USE_HWINFO
+	help
+	  Enable AMBIQ hwinfo driver
 
 endif
